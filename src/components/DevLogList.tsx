@@ -1,19 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { devLogApi } from "../lib/api";
+import { devLogApi, type DevLogEntry } from "../lib/api";
 import "./DevLogList.css";
 
-interface DevLog {
-  id: number;
-  title: string;
-  content: string;
-  tags: string | null;
-  isPublished: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
 const DevLogList: React.FC = () => {
-  const [devLogs, setDevLogs] = useState<DevLog[]>([]);
+  const [devLogs, setDevLogs] = useState<DevLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>("");
 
@@ -107,7 +97,7 @@ const DevLogList: React.FC = () => {
             <div className="devlog-card__header">
               <h3 className="devlog-card__title">{log.title}</h3>
               <time className="devlog-card__date" dateTime={log.createdAt}>
-                {formatDate(log.createdAt)}
+                {log.createdAt && formatDate(log.createdAt)}
               </time>
             </div>
 
