@@ -21,7 +21,16 @@ const pool = mysql.createPool({
 });
 
 // Middleware
-app.use(cors());
+app.use(
+  cors({
+    origin: [
+      "https://jvalentinec.github.io",
+      "http://localhost:5173",
+      "http://localhost:5174",
+    ],
+    credentials: true,
+  })
+);
 app.use(express.json());
 
 // Health check endpoint
@@ -82,10 +91,9 @@ app.get("/api/devlogs/:id", async (req, res) => {
   try {
     const { id } = req.params;
 
-    const [entries] = await pool.execute(
-      "SELECT * FROM DevLog WHERE id = ?",
-      [id]
-    );
+    const [entries] = await pool.execute("SELECT * FROM DevLog WHERE id = ?", [
+      id,
+    ]);
 
     if (entries.length === 0) {
       return res.status(404).json({
@@ -130,10 +138,9 @@ app.post("/api/devlogs", async (req, res) => {
       [title, content, tags || null, isPublished || false]
     );
 
-    const [newEntry] = await pool.execute(
-      "SELECT * FROM DevLog WHERE id = ?",
-      [result.insertId]
-    );
+    const [newEntry] = await pool.execute("SELECT * FROM DevLog WHERE id = ?", [
+      result.insertId,
+    ]);
 
     res.status(201).json({
       success: true,
@@ -156,10 +163,9 @@ app.put("/api/devlogs/:id", async (req, res) => {
     const { id } = req.params;
     const { title, content, tags, isPublished } = req.body;
 
-    const [existing] = await pool.execute(
-      "SELECT * FROM DevLog WHERE id = ?",
-      [id]
-    );
+    const [existing] = await pool.execute("SELECT * FROM DevLog WHERE id = ?", [
+      id,
+    ]);
 
     if (existing.length === 0) {
       return res.status(404).json({
@@ -179,10 +185,9 @@ app.put("/api/devlogs/:id", async (req, res) => {
       ]
     );
 
-    const [updated] = await pool.execute(
-      "SELECT * FROM DevLog WHERE id = ?",
-      [id]
-    );
+    const [updated] = await pool.execute("SELECT * FROM DevLog WHERE id = ?", [
+      id,
+    ]);
 
     res.json({
       success: true,
@@ -204,10 +209,9 @@ app.delete("/api/devlogs/:id", async (req, res) => {
   try {
     const { id } = req.params;
 
-    const [existing] = await pool.execute(
-      "SELECT * FROM DevLog WHERE id = ?",
-      [id]
-    );
+    const [existing] = await pool.execute("SELECT * FROM DevLog WHERE id = ?", [
+      id,
+    ]);
 
     if (existing.length === 0) {
       return res.status(404).json({
