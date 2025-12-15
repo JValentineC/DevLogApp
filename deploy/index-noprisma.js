@@ -11,10 +11,10 @@ const PORT = process.env.PORT || 3000;
 
 // Create MySQL connection pool
 const pool = mysql.createPool({
-  host: "devlogs.db",
-  user: "jvc",
-  password: "AaJ4WT9gmq?_y",
-  database: "devlogs",
+  host: process.env.DB_HOST || "devlogs.db",
+  user: process.env.DB_USER || "jvc",
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME || "devlogs",
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
@@ -36,6 +36,143 @@ app.use(express.json());
 // Health check endpoint
 app.get("/api/health", (req, res) => {
   res.json({ status: "OK", message: "DevLogger API is running" });
+});
+
+// POST /api/auth/login - User login
+app.post("/api/auth/login", async (req, res) => {
+  try {
+    const { username, password } = req.body;
+
+    if (!username || !password) {
+      return res.status(400).json({
+        success: false,
+        error: "Username and password are required",
+      });
+    }
+
+    // Query user from database
+    const [users] = await pool.execute(
+      "SELECT id, username, password, email, name, profilePhoto, bio FROM User WHERE username = ?",
+      [username]
+    );
+
+    if (users.length === 0) {
+      return res.status(401).json({
+        success: false,
+        error: "Invalid username or password",
+      });
+    }
+
+    const user = users[0];
+
+    // Compare password (plain text for now - in production, use bcrypt)
+    if (user.password !== password) {
+      return res.status(401).json({
+        success: false,
+        error: "Invalid username or password",
+      });
+    }
+
+    // Generate a simple token (in production, use JWT)
+    const token = Buffer.from(
+      `${user.id}:${user.username}:${Date.now()}`
+    ).toString("base64");
+
+    res.json({
+      success: true,
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        name: user.name,
+        profilePhoto: user.profilePhoto,
+        bio: user.bio,
+      },
+      token,
+    });
+  } catch (error) {
+    console.error("Error during login:", error);
+    res.status(500).json({
+      success: false,
+      error: "Login failed",
+      message: error.message,
+    });
+  }
+});
+
+// PUT /api/users/:id - Update user profile
+app.put("/api/users/:id", async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id);
+    const { username, name, bio, profilePhoto, currentPassword, newPassword } =
+      req.body;
+
+    // If changing password, verify current password first
+    if (newPassword) {
+      if (!currentPassword) {
+        return res.status(400).json({
+          success: false,
+          error: "Current password required to change password",
+        });
+      }
+
+      const [users] = await pool.execute(
+        "SELECT password FROM User WHERE id = ?",
+        [userId]
+      );
+
+      if (users.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: "User not found",
+        });
+      }
+
+      if (users[0].password !== currentPassword) {
+        return res.status(401).json({
+          success: false,
+          error: "Current password is incorrect",
+        });
+      }
+
+      // Update with new password
+      await pool.execute(
+        "UPDATE User SET username = ?, name = ?, bio = ?, profilePhoto = ?, password = ? WHERE id = ?",
+        [username, name, bio, profilePhoto, newPassword, userId]
+      );
+    } else {
+      // Update without password change
+      await pool.execute(
+        "UPDATE User SET username = ?, name = ?, bio = ?, profilePhoto = ? WHERE id = ?",
+        [username, name, bio, profilePhoto, userId]
+      );
+    }
+
+    // Fetch updated user data
+    const [updatedUsers] = await pool.execute(
+      "SELECT id, username, email, name, profilePhoto, bio FROM User WHERE id = ?",
+      [userId]
+    );
+
+    if (updatedUsers.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: "User not found",
+      });
+    }
+
+    res.json({
+      success: true,
+      user: updatedUsers[0],
+    });
+  } catch (error) {
+    console.error("Error updating user profile:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to update profile",
+      message: error.message,
+    });
+  }
 });
 
 // GET /api/devlogs - Get all dev log entries
@@ -71,9 +208,15 @@ app.get("/api/devlogs", async (req, res) => {
       published !== undefined ? [published === "true" ? 1 : 0] : []
     );
 
+    // Convert MySQL boolean integers to actual booleans
+    const formattedEntries = entries.map((entry) => ({
+      ...entry,
+      isPublished: Boolean(entry.isPublished),
+    }));
+
     res.json({
       success: true,
-      entries,
+      entries: formattedEntries,
       count: countResult[0].count,
     });
   } catch (error) {
@@ -237,6 +380,6 @@ app.delete("/api/devlogs/:id", async (req, res) => {
 });
 
 // Start server
-app.listen(PORT, () => {
+app.listen(PORT, "0.0.0.0", () => {
   console.log(`DevLogger API server running on port ${PORT}`);
 });

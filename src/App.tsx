@@ -1,18 +1,65 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import EntryLogger from "./components/EntryLogger";
 import DevLogList from "./components/DevLogList";
 import About from "./components/About";
+import Login from "./components/Login";
+import Profile from "./components/Profile";
 import "./App.css";
+
+interface User {
+  id: number;
+  username: string;
+  email?: string;
+  name?: string;
+  profilePhoto?: string;
+  bio?: string;
+}
 
 function App() {
   const [showLogger, setShowLogger] = useState(false);
+  const [showLogin, setShowLogin] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [currentPage, setCurrentPage] = useState<"home" | "logs">("home");
+  const [currentPage, setCurrentPage] = useState<"home" | "logs" | "profile">(
+    "home"
+  );
+  const [user, setUser] = useState<User | null>(null);
+
+  // Check for stored user on mount
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    const authToken = localStorage.getItem("authToken");
+    if (storedUser && authToken) {
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch (e) {
+        console.error("Failed to parse stored user", e);
+        localStorage.removeItem("user");
+        localStorage.removeItem("authToken");
+      }
+    }
+  }, []);
 
   const handleEntryCreated = () => {
     // Trigger a refresh of the dev log list
     setRefreshKey((prev) => prev + 1);
     setShowLogger(false);
+  };
+
+  const handleLoginSuccess = (loggedInUser: User) => {
+    setUser(loggedInUser);
+    setShowLogin(false);
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    localStorage.removeItem("user");
+    localStorage.removeItem("authToken");
+    setShowLogger(false);
+    setCurrentPage("home");
+  };
+
+  const handleProfileUpdate = (updatedUser: User) => {
+    setUser(updatedUser);
   };
 
   return (
@@ -23,12 +70,27 @@ function App() {
             <h1 className="site-title">JVC's Dev Log</h1>
             {currentPage === "logs" && (
               <div className="header-actions">
-                <button
-                  onClick={() => setShowLogger(!showLogger)}
-                  className="btn-new-entry"
-                >
-                  {showLogger ? "✕ Close" : "+ New Entry"}
-                </button>
+                {user ? (
+                  <>
+                    <span className="user-greeting">Hi, {user.username}</span>
+                    <button
+                      onClick={() => setShowLogger(!showLogger)}
+                      className="btn-new-entry"
+                    >
+                      {showLogger ? "✕ Close" : "+ New Entry"}
+                    </button>
+                    <button onClick={handleLogout} className="btn-logout">
+                      Logout
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => setShowLogin(true)}
+                    className="btn-new-entry"
+                  >
+                    Login
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -58,6 +120,20 @@ function App() {
                   Developer Logs
                 </a>
               </li>
+              {user && (
+                <li>
+                  <a
+                    href="#profile"
+                    className={currentPage === "profile" ? "active" : ""}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setCurrentPage("profile");
+                    }}
+                  >
+                    Profile
+                  </a>
+                </li>
+              )}
               <li>
                 <a
                   href="https://www.jvcswebdesigns.xyz/about.html"
@@ -78,24 +154,46 @@ function App() {
             <aside className="sidebar">
               <div className="profile-section">
                 <img
-                  src="/tmp_b9d037e2-6fac-4d39-8e83-61581f62b4a5.png"
-                  alt="Jonathan Ramirez"
+                  src={
+                    user?.profilePhoto || "/DevLogApp/apple-touch-icon (2).png"
+                  }
+                  alt={user?.name || user?.username || "Profile"}
                   className="profile-img"
-                  onError={(e) => {
-                    e.currentTarget.src =
-                      "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Crect fill='%23343a40' width='200' height='200'/%3E%3Ctext fill='%23fff' font-family='Arial' font-size='60' x='50%25' y='50%25' text-anchor='middle' dominant-baseline='middle'%3EJR%3C/text%3E%3C/svg%3E";
-                  }}
                 />
-                <h2 className="profile-name">Jonathan Ramirez</h2>
+                <h2 className="profile-name">
+                  {user?.name || user?.username || "Jonathan Ramirez"}
+                </h2>
                 <p className="profile-title">Full Stack Developer</p>
               </div>
               <div className="profile-bio">
                 <h3>About Me</h3>
-                <p>
-                  Passionate developer documenting my journey and sharing
-                  insights through dev logs. I love building web applications
-                  and learning new technologies.
-                </p>
+                {user?.bio ? (
+                  <p>{user.bio}</p>
+                ) : user ? (
+                  <p>
+                    <a
+                      href="#profile"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setCurrentPage("profile");
+                      }}
+                      style={{
+                        color: "#dc3545",
+                        textDecoration: "underline",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Add your bio
+                    </a>{" "}
+                    to tell visitors about yourself.
+                  </p>
+                ) : (
+                  <p>
+                    Passionate developer documenting my journey and sharing
+                    insights through dev logs. I love building web applications
+                    and learning new technologies.
+                  </p>
+                )}
               </div>
             </aside>
 
@@ -158,8 +256,18 @@ function App() {
             </div>
           )}
         </>
+      ) : currentPage === "profile" && user ? (
+        <Profile user={user} onProfileUpdate={handleProfileUpdate} />
       ) : (
         <About />
+      )}
+
+      {/* Login Modal */}
+      {showLogin && (
+        <Login
+          onLoginSuccess={handleLoginSuccess}
+          onClose={() => setShowLogin(false)}
+        />
       )}
     </>
   );

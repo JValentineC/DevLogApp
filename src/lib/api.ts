@@ -15,6 +15,7 @@ export interface DevLogEntry {
 export interface ApiResponse<T> {
   success: boolean;
   data?: T;
+  entries?: T;
   error?: string;
   message?: string;
   count?: number;
@@ -116,9 +117,9 @@ export const devLogApi = {
     const endpoint = `/devlogs${
       params.toString() ? `?${params.toString()}` : ""
     }`;
-    const response = await apiFetch<DevLogEntry[]>(endpoint);
+    const response = await apiFetch<any>(endpoint);
 
-    if (!response.success || !response.data) {
+    if (!response.success || !response.entries) {
       throw new ApiError(
         response.error || "Failed to fetch dev logs",
         500,
@@ -127,8 +128,8 @@ export const devLogApi = {
     }
 
     return {
-      entries: response.data,
-      count: response.count || response.data.length,
+      entries: response.entries,
+      count: response.count || 0,
     };
   },
 
