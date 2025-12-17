@@ -193,7 +193,7 @@ function App() {
 
       {currentPage === "logs" ? (
         <>
-          <div className="page-container">
+          <div className="page-container-full">
             <main className="main-content-full">
               {user || selectedUserId ? (
                 <>
