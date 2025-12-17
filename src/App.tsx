@@ -342,7 +342,10 @@ function App() {
       ) : currentPage === "admin" && user && user.role === "super_admin" ? (
         <AdminUserManagement />
       ) : (
-        <About user={user} onNavigateToProfile={() => setCurrentPage("profile")} />
+        <About
+          user={user}
+          onNavigateToProfile={() => setCurrentPage("profile")}
+        />
       )}
 
       {/* Login Modal */}
