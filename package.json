@@ -14,14 +14,20 @@
     "deploy": "gh-pages -d dist",
     "db:studio": "prisma studio",
     "db:migrate": "prisma migrate dev",
-    "db:generate": "prisma generate"
+    "db:generate": "prisma generate",
+    "security:migrate-passwords": "node deploy/migrate-passwords.js",
+    "security:generate-secret": "node -e \"console.log('JWT_SECRET=' + require('crypto').randomBytes(64).toString('base64'))\""
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.5",
+    "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "express": "^5.1.0",
+    "express-rate-limit": "^8.2.1",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.3",
     "mssql": "^12.1.0",
     "mysql2": "^3.15.3",
     "prisma": "^5.22.0",
@@ -30,6 +36,8 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.33.0",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/react": "^19.1.10",
     "@types/react-dom": "^19.1.7",
     "@vitejs/plugin-react": "^5.0.0",

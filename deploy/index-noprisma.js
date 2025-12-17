@@ -2,6 +2,10 @@ import express from "express";
 import cors from "cors";
 import mysql from "mysql2/promise";
 import dotenv from "dotenv";
+import bcrypt from "bcryptjs";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
+import { authenticateToken, authorizeOwner, generateToken } from "./middleware/auth.js";
 
 // Load environment variables
 dotenv.config();
@@ -20,6 +24,27 @@ const pool = mysql.createPool({
   queueLimit: 0,
 });
 
+// Security middleware
+app.use(helmet({
+  contentSecurityPolicy: false, // Disable for API
+  crossOriginEmbedderPolicy: false,
+}));
+
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: "Too many requests from this IP, please try again later.",
+});
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // Limit each IP to 5 login attempts per windowMs
+  message: "Too many login attempts, please try again later.",
+});
+
+app.use("/api/", limiter);
+
 // Middleware
 app.use(
   cors({
@@ -31,15 +56,15 @@ app.use(
     credentials: true,
   })
 );
-app.use(express.json());
+app.use(express.json({ limit: "10mb" }));
 
 // Health check endpoint
 app.get("/api/health", (req, res) => {
   res.json({ status: "OK", message: "DevLogger API is running" });
 });
 
-// POST /api/auth/login - User login
-app.post("/api/auth/login", async (req, res) => {
+// POST /api/auth/login - User login with bcrypt and JWT
+app.post("/api/auth/login", authLimiter, async (req, res) => {
   try {
     const { username, password } = req.body;
 
@@ -65,18 +90,18 @@ app.post("/api/auth/login", async (req, res) => {
 
     const user = users[0];
 
-    // Compare password (plain text for now - in production, use bcrypt)
-    if (user.password !== password) {
+    // Compare password using bcrypt
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    
+    if (!isPasswordValid) {
       return res.status(401).json({
         success: false,
         error: "Invalid username or password",
       });
     }
 
-    // Generate a simple token (in production, use JWT)
-    const token = Buffer.from(
-      `${user.id}:${user.username}:${Date.now()}`
-    ).toString("base64");
+    // Generate JWT token
+    const token = generateToken(user.id, user.username, user.email);
 
     res.json({
       success: true,
@@ -100,8 +125,122 @@ app.post("/api/auth/login", async (req, res) => {
   }
 });
 
-// PUT /api/users/:id - Update user profile
-app.put("/api/users/:id", async (req, res) => {
+// POST /api/auth/register - User registration
+app.post("/api/auth/register", authLimiter, async (req, res) => {
+  try {
+    const { username, email, password, firstName, lastName } = req.body;
+
+    // Validation
+    if (!username || !email || !password || !firstName || !lastName) {
+      return res.status(400).json({
+        success: false,
+        error: "All fields are required",
+        details: {
+          username: !username ? "Username is required" : null,
+          email: !email ? "Email is required" : null,
+          password: !password ? "Password is required" : null,
+          firstName: !firstName ? "First name is required" : null,
+          lastName: !lastName ? "Last name is required" : null,
+        },
+      });
+    }
+
+    // Validate password strength
+    if (password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        error: "Password must be at least 6 characters",
+      });
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid email format",
+      });
+    }
+
+    // Check if username or email already exists
+    const [existingUsers] = await pool.execute(
+      "SELECT id FROM User WHERE username = ? OR email = ?",
+      [username, email]
+    );
+
+    if (existingUsers.length > 0) {
+      return res.status(409).json({
+        success: false,
+        error: "Username or email already exists",
+      });
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Create user
+    const [result] = await pool.execute(
+      "INSERT INTO User (username, email, password, firstName, lastName, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, NOW(), NOW())",
+      [username, email, hashedPassword, firstName, lastName]
+    );
+
+    // Generate JWT token
+    const token = generateToken(result.insertId, username, email);
+
+    res.status(201).json({
+      success: true,
+      message: "User registered successfully",
+      user: {
+        id: result.insertId,
+        username,
+        email,
+        name: `${firstName} ${lastName}`,
+      },
+      token,
+    });
+  } catch (error) {
+    console.error("Error during registration:", error);
+    res.status(500).json({
+      success: false,
+      error: "Registration failed",
+      message: error.message,
+    });
+  }
+});
+
+// GET /api/users - Get all users with published dev logs
+app.get("/api/users", async (req, res) => {
+  try {
+    // Get all users (for now, until we add userId to DevLog table)
+    const [users] = await pool.execute(`
+      SELECT 
+        u.id, 
+        u.username, 
+        u.name, 
+        u.profilePhoto, 
+        u.bio,
+        2 as devLogCount
+      FROM User u
+      WHERE u.username IS NOT NULL
+      ORDER BY u.username ASC
+    `);
+
+    res.json({
+      success: true,
+      users: users,
+    });
+  } catch (error) {
+    console.error("Error fetching users:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch users",
+      message: error.message,
+    });
+  }
+});
+
+// PUT /api/users/:id - Update user profile (Protected)
+app.put("/api/users/:id", authenticateToken, authorizeOwner, async (req, res) => {
   try {
     const userId = parseInt(req.params.id);
     const { username, name, bio, profilePhoto, currentPassword, newPassword } =
@@ -113,6 +252,13 @@ app.put("/api/users/:id", async (req, res) => {
         return res.status(400).json({
           success: false,
           error: "Current password required to change password",
+        });
+      }
+
+      if (newPassword.length < 6) {
+        return res.status(400).json({
+          success: false,
+          error: "New password must be at least 6 characters",
         });
       }
 
@@ -128,17 +274,23 @@ app.put("/api/users/:id", async (req, res) => {
         });
       }
 
-      if (users[0].password !== currentPassword) {
+      // Verify current password with bcrypt
+      const isPasswordValid = await bcrypt.compare(currentPassword, users[0].password);
+      
+      if (!isPasswordValid) {
         return res.status(401).json({
           success: false,
           error: "Current password is incorrect",
         });
       }
 
+      // Hash new password
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+
       // Update with new password
       await pool.execute(
         "UPDATE User SET username = ?, name = ?, bio = ?, profilePhoto = ?, password = ? WHERE id = ?",
-        [username, name, bio, profilePhoto, newPassword, userId]
+        [username, name, bio, profilePhoto, hashedPassword, userId]
       );
     } else {
       // Update without password change
@@ -259,10 +411,11 @@ app.get("/api/devlogs/:id", async (req, res) => {
   }
 });
 
-// POST /api/devlogs - Create a new dev log entry
-app.post("/api/devlogs", async (req, res) => {
+// POST /api/devlogs - Create a new dev log entry (Protected)
+app.post("/api/devlogs", authenticateToken, async (req, res) => {
   try {
     const { title, content, tags, isPublished } = req.body;
+    const userId = req.user.userId;
 
     // Validation
     if (!title || !content) {
@@ -277,8 +430,8 @@ app.post("/api/devlogs", async (req, res) => {
     }
 
     const [result] = await pool.execute(
-      "INSERT INTO DevLog (title, content, tags, isPublished, createdAt, updatedAt) VALUES (?, ?, ?, ?, NOW(), NOW())",
-      [title, content, tags || null, isPublished || false]
+      "INSERT INTO DevLog (title, content, tags, isPublished, createdBy, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, NOW(), NOW())",
+      [title, content, tags || null, isPublished || false, userId]
     );
 
     const [newEntry] = await pool.execute("SELECT * FROM DevLog WHERE id = ?", [
@@ -300,11 +453,12 @@ app.post("/api/devlogs", async (req, res) => {
   }
 });
 
-// PUT /api/devlogs/:id - Update a dev log entry
-app.put("/api/devlogs/:id", async (req, res) => {
+// PUT /api/devlogs/:id - Update a dev log entry (Protected)
+app.put("/api/devlogs/:id", authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { title, content, tags, isPublished } = req.body;
+    const userId = req.user.userId;
 
     const [existing] = await pool.execute("SELECT * FROM DevLog WHERE id = ?", [
       id,
@@ -314,6 +468,14 @@ app.put("/api/devlogs/:id", async (req, res) => {
       return res.status(404).json({
         success: false,
         error: "Dev log entry not found",
+      });
+    }
+
+    // Check if user owns this dev log
+    if (existing[0].createdBy !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: "You can only edit your own dev logs",
       });
     }
 
@@ -347,10 +509,11 @@ app.put("/api/devlogs/:id", async (req, res) => {
   }
 });
 
-// DELETE /api/devlogs/:id - Delete a dev log entry
-app.delete("/api/devlogs/:id", async (req, res) => {
+// DELETE /api/devlogs/:id - Delete a dev log entry (Protected)
+app.delete("/api/devlogs/:id", authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
+    const userId = req.user.userId;
 
     const [existing] = await pool.execute("SELECT * FROM DevLog WHERE id = ?", [
       id,
@@ -360,6 +523,14 @@ app.delete("/api/devlogs/:id", async (req, res) => {
       return res.status(404).json({
         success: false,
         error: "Dev log entry not found",
+      });
+    }
+
+    // Check if user owns this dev log
+    if (existing[0].createdBy !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: "You can only delete your own dev logs",
       });
     }
 

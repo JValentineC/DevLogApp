@@ -34,26 +34,60 @@ class ApiError extends Error {
   }
 }
 
-// Generic fetch wrapper with error handling
+// Get authentication token from localStorage
+function getAuthToken(): string | null {
+  return localStorage.getItem("authToken");
+}
+
+// Generic fetch wrapper with error handling and JWT authentication
 async function apiFetch<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<ApiResponse<T>> {
   const url = `${API_BASE_URL}${endpoint}`;
 
-  const defaultOptions: RequestInit = {
-    headers: {
-      "Content-Type": "application/json",
-    },
+  const defaultHeaders: Record<string, string> = {
+    "Content-Type": "application/json",
   };
 
-  const config = { ...defaultOptions, ...options };
+  // Add authentication token if available
+  const token = getAuthToken();
+  if (token) {
+    defaultHeaders["Authorization"] = `Bearer ${token}`;
+  }
+
+  const defaultOptions: RequestInit = {
+    headers: defaultHeaders,
+  };
+
+  // Merge headers properly
+  const config: RequestInit = {
+    ...defaultOptions,
+    ...options,
+    headers: {
+      ...defaultHeaders,
+      ...(options.headers || {}),
+    },
+  };
 
   try {
     const response = await fetch(url, config);
     const data: ApiResponse<T> = await response.json();
 
     if (!response.ok) {
+      // Handle token expiration
+      if (response.status === 401 && data.error?.includes("expired")) {
+        // Clear invalid token
+        localStorage.removeItem("authToken");
+        localStorage.removeItem("user");
+
+        throw new ApiError(
+          "Your session has expired. Please login again.",
+          401,
+          data
+        );
+      }
+
       throw new ApiError(
         data.error || `HTTP ${response.status}: ${response.statusText}`,
         response.status,
@@ -99,6 +133,7 @@ export const devLogApi = {
   // Get all dev log entries
   async getAll(filters?: {
     published?: boolean;
+    userId?: number;
     limit?: number;
     offset?: number;
   }): Promise<{ entries: DevLogEntry[]; count: number }> {
@@ -106,6 +141,9 @@ export const devLogApi = {
 
     if (filters?.published !== undefined) {
       params.append("published", filters.published.toString());
+    }
+    if (filters?.userId !== undefined) {
+      params.append("userId", filters.userId.toString());
     }
     if (filters?.limit) {
       params.append("limit", filters.limit.toString());
