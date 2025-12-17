@@ -1,7 +1,20 @@
 import React from "react";
 import "./About.css";
 
-const About: React.FC = () => {
+interface AboutProps {
+  user?: {
+    id: number;
+    username: string;
+    email?: string;
+    name?: string;
+    profilePhoto?: string;
+    bio?: string;
+    role?: "user" | "admin" | "super_admin";
+  } | null;
+  onNavigateToProfile?: () => void;
+}
+
+const About: React.FC<AboutProps> = ({ user, onNavigateToProfile }) => {
   return (
     <div className="about-page">
       <div className="hero-banner">
@@ -12,6 +25,48 @@ const About: React.FC = () => {
 
       <div className="about-content">
         <div className="about-container">
+          {user && (
+            <aside className="profile-card">
+              <div className="profile-section">
+                <img
+                  src={
+                    user?.profilePhoto || "/DevLogApp/apple-touch-icon (2).png"
+                  }
+                  alt={user?.name || user?.username || "Profile"}
+                  className="profile-img"
+                />
+                <h2 className="profile-name">
+                  {user?.name || user?.username || "Jonathan Ramirez"}
+                </h2>
+                <p className="profile-title">Full Stack Developer</p>
+              </div>
+              <div className="profile-bio">
+                <h3>About Me</h3>
+                {user?.bio ? (
+                  <p>{user.bio}</p>
+                ) : (
+                  <p>
+                    <a
+                      href="#profile"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        onNavigateToProfile?.();
+                      }}
+                      style={{
+                        color: "#dc3545",
+                        textDecoration: "underline",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Add your bio
+                    </a>{" "}
+                    to tell visitors about yourself.
+                  </p>
+                )}
+              </div>
+            </aside>
+          )}
+
           <section className="about-section">
             <h2>Welcome to My Dev Log</h2>
             <p>

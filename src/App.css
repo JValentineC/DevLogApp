@@ -210,6 +210,14 @@ body {
   min-height: 500px;
 }
 
+.main-content-full {
+  background: transparent;
+  min-height: 500px;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
 /* Responsive Design */
 @media (max-width: 1024px) {
   .page-container {

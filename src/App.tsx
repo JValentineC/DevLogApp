@@ -194,53 +194,7 @@ function App() {
       {currentPage === "logs" ? (
         <>
           <div className="page-container">
-            <aside className="sidebar">
-              <div className="profile-section">
-                <img
-                  src={
-                    user?.profilePhoto || "/DevLogApp/apple-touch-icon (2).png"
-                  }
-                  alt={user?.name || user?.username || "Profile"}
-                  className="profile-img"
-                />
-                <h2 className="profile-name">
-                  {user?.name || user?.username || "Jonathan Ramirez"}
-                </h2>
-                <p className="profile-title">Full Stack Developer</p>
-              </div>
-              <div className="profile-bio">
-                <h3>About Me</h3>
-                {user?.bio ? (
-                  <p>{user.bio}</p>
-                ) : user ? (
-                  <p>
-                    <a
-                      href="#profile"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        setCurrentPage("profile");
-                      }}
-                      style={{
-                        color: "#dc3545",
-                        textDecoration: "underline",
-                        cursor: "pointer",
-                      }}
-                    >
-                      Add your bio
-                    </a>{" "}
-                    to tell visitors about yourself.
-                  </p>
-                ) : (
-                  <p>
-                    Passionate developer documenting my journey and sharing
-                    insights through dev logs. I love building web applications
-                    and learning new technologies.
-                  </p>
-                )}
-              </div>
-            </aside>
-
-            <main className="main-content">
+            <main className="main-content-full">
               {user || selectedUserId ? (
                 <>
                   {selectedUserId && !user && (
@@ -388,7 +342,7 @@ function App() {
       ) : currentPage === "admin" && user && user.role === "super_admin" ? (
         <AdminUserManagement />
       ) : (
-        <About />
+        <About user={user} onNavigateToProfile={() => setCurrentPage("profile")} />
       )}
 
       {/* Login Modal */}
