@@ -10,12 +10,41 @@ export interface DevLogEntry {
   isPublished: boolean;
   createdAt?: string;
   updatedAt?: string;
+  createdBy?: number;
+  author?: {
+    id: number;
+    username: string;
+    firstName: string;
+    lastName: string;
+    profilePhoto?: string;
+  };
+}
+
+export interface User {
+  id: number;
+  username: string;
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  name?: string;
+  profilePhoto?: string;
+  bio?: string;
+  role: "user" | "admin" | "super_admin";
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface LoginResponse {
+  success: boolean;
+  user: User;
+  token: string;
 }
 
 export interface ApiResponse<T> {
   success: boolean;
   data?: T;
   entries?: T;
+  users?: T;
   error?: string;
   message?: string;
   count?: number;
@@ -229,6 +258,88 @@ export const devLogApi = {
       return response.success && response.data?.status === "OK";
     } catch {
       return false;
+    }
+  },
+};
+
+// User management API (admin only)
+export const userApi = {
+  // Get all users (super_admin only)
+  async getAll(): Promise<{ users: User[]; count: number }> {
+    const response = await apiFetch<any>("/admin/users");
+
+    if (!response.success || !response.users) {
+      throw new ApiError(
+        response.error || "Failed to fetch users",
+        500,
+        response
+      );
+    }
+
+    return {
+      users: response.users,
+      count: response.count || 0,
+    };
+  },
+
+  // Create a new user (super_admin only)
+  async create(userData: {
+    username: string;
+    email: string;
+    password: string;
+    firstName: string;
+    lastName: string;
+    role?: "user" | "admin" | "super_admin";
+  }): Promise<User> {
+    const response = await apiFetch<User>("/admin/users", {
+      method: "POST",
+      body: JSON.stringify(userData),
+    });
+
+    if (!response.success || !response.data) {
+      throw new ApiError(
+        response.error || "Failed to create user",
+        500,
+        response
+      );
+    }
+
+    return response.data;
+  },
+
+  // Update user role (super_admin only)
+  async updateRole(
+    userId: number,
+    role: "user" | "admin" | "super_admin"
+  ): Promise<User> {
+    const response = await apiFetch<User>(`/admin/users/${userId}/role`, {
+      method: "PATCH",
+      body: JSON.stringify({ role }),
+    });
+
+    if (!response.success || !response.data) {
+      throw new ApiError(
+        response.error || "Failed to update user role",
+        500,
+        response
+      );
+    }
+
+    return response.data;
+  },
+
+  // Delete a user (super_admin only)
+  async delete(userId: number): Promise<void> {
+    const response = await apiFetch<void>(`/admin/users/${userId}`, {
+      method: "DELETE",
+    });
+
+    if (!response.success) {
+      throw new ApiError(
+        response.error || "Failed to delete user",
+        500,
+        response
+      );
     }
   },
 };

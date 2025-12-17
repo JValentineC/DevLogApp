@@ -1,0 +1,92 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  
+  // Name fields
+  firstName    String   @db.VarChar(100)
+  middleName   String?  @db.VarChar(100)
+  lastName     String   @db.VarChar(100)
+  
+  // Authentication
+  email        String   @unique @db.VarChar(255)
+  password     String   @db.VarChar(255)
+  passwordHint String?  @db.VarChar(255)
+  
+  // Profile
+  username     String   @unique @db.VarChar(50)
+  profilePhoto String?  @db.Text
+  bio          String?  @db.Text
+  
+  // Timestamps
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  // Relations
+  devLogs      DevLog[]
+  
+  @@map("User")
+}
+
+model DevLog {
+  id          Int      @id @default(autoincrement())
+  title       String   @db.VarChar(255)
+  content     String   @db.Text
+  
+  // User relationship
+  createdBy   Int
+  user        User     @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  
+  // Image support (JSON array of URLs)
+  images      String?  @db.Text
+  
+  // Publishing
+  isPublished Boolean  @default(false)
+  
+  // Timestamps
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  tags        DevLogTag[]
+  
+  @@index([createdBy])
+  @@index([createdAt])
+  @@index([isPublished])
+  @@map("DevLog")
+}
+
+model Tag {
+  id        Int         @id @default(autoincrement())
+  name      String      @unique @db.VarChar(50)
+  color     String      @default("#6c757d") @db.VarChar(7)
+  createdAt DateTime    @default(now())
+  
+  // Relations
+  devLogs   DevLogTag[]
+  
+  @@map("Tag")
+}
+
+model DevLogTag {
+  id       Int    @id @default(autoincrement())
+  devLogId Int
+  tagId    Int
+  
+  // Relations
+  devLog   DevLog @relation(fields: [devLogId], references: [id], onDelete: Cascade)
+  tag      Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  
+  @@unique([devLogId, tagId])
+  @@index([devLogId])
+  @@index([tagId])
+  @@map("DevLogTag")
+}
+

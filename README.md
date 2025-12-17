@@ -13,12 +13,14 @@ A full-stack developer log application built with React, TypeScript, Express, an
 ## Tech Stack
 
 ### Frontend
+
 - React 19.1.1
 - TypeScript
 - Vite 7.1.3
 - CSS Grid Layout
 
 ### Backend
+
 - Express 5.1.0
 - MySQL/MariaDB 11.7
 - Node.js
@@ -50,29 +52,34 @@ DevLogs/
 ## Setup
 
 ### Prerequisites
+
 - Node.js 18+
 - MySQL/MariaDB database
 
 ### Installation
 
 1. Clone the repository
+
 ```bash
 git clone https://github.com/JValentineC/DevLogApp.git
 cd DevLogApp
 ```
 
 2. Install dependencies
+
 ```bash
 npm install
 ```
 
 3. Configure environment variables
+
 ```bash
 cp .env.example .env
 # Edit .env with your database credentials
 ```
 
 4. Run development server
+
 ```bash
 npm run dev
 ```
@@ -80,11 +87,13 @@ npm run dev
 ## Deployment
 
 ### Frontend (GitHub Pages)
+
 ```bash
 npm run deploy
 ```
 
 ### Backend (NearlyFreeSpeech.net)
+
 1. Upload `deploy/index-noprisma.js` to `/home/protected/index.js`
 2. Create `.env` file on server with database credentials
 3. Configure daemon to run `node index.js`
@@ -111,22 +120,25 @@ npm run deploy
 ## License
 
 MIT
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
+{
+files: ['**/*.{ts,tsx}'],
+extends: [
+// Other configs...
+// Enable lint rules for React
+reactX.configs['recommended-typescript'],
+// Enable lint rules for React DOM
+reactDom.configs.recommended,
+],
+languageOptions: {
+parserOptions: {
+project: ['./tsconfig.node.json', './tsconfig.app.json'],
+tsconfigRootDir: import.meta.dirname,
+},
+// other options...
+},
+},
 ])
+
+```
+
 ```

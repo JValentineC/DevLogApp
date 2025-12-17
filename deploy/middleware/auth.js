@@ -1,7 +1,8 @@
 import jwt from "jsonwebtoken";
 
 // JWT Secret - In production, use environment variable
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-this-in-production";
+const JWT_SECRET =
+  process.env.JWT_SECRET || "your-secret-key-change-this-in-production";
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "7d";
 
 /**
@@ -66,7 +67,7 @@ export const optionalAuth = (req, res, next) => {
  */
 export const authorizeOwner = (req, res, next) => {
   const resourceUserId = parseInt(req.params.id);
-  
+
   if (!req.user) {
     return res.status(401).json({
       success: false,
@@ -85,14 +86,42 @@ export const authorizeOwner = (req, res, next) => {
 };
 
 /**
+ * Middleware to check if user has required role
+ * Usage: requireRole('admin') or requireRole(['admin', 'super_admin'])
+ */
+export const requireRole = (...allowedRoles) => {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        error: "Authentication required.",
+      });
+    }
+
+    const userRole = req.user.role || "user";
+    const roles = allowedRoles.flat(); // Flatten in case array is passed
+
+    if (!roles.includes(userRole)) {
+      return res.status(403).json({
+        success: false,
+        error: "Access denied. Insufficient permissions.",
+      });
+    }
+
+    next();
+  };
+};
+
+/**
  * Generate JWT token
  */
-export const generateToken = (userId, username, email) => {
+export const generateToken = (userId, username, email, role = "user") => {
   return jwt.sign(
-    { 
-      userId, 
+    {
+      userId,
       username,
-      email 
+      email,
+      role,
     },
     JWT_SECRET,
     { expiresIn: JWT_EXPIRES_IN }

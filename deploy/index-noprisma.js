@@ -5,7 +5,12 @@ import dotenv from "dotenv";
 import bcrypt from "bcryptjs";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
-import { authenticateToken, authorizeOwner, generateToken } from "./middleware/auth.js";
+import {
+  authenticateToken,
+  authorizeOwner,
+  generateToken,
+  requireRole,
+} from "./middleware/auth.js";
 
 // Load environment variables
 dotenv.config();
@@ -25,10 +30,12 @@ const pool = mysql.createPool({
 });
 
 // Security middleware
-app.use(helmet({
-  contentSecurityPolicy: false, // Disable for API
-  crossOriginEmbedderPolicy: false,
-}));
+app.use(
+  helmet({
+    contentSecurityPolicy: false, // Disable for API
+    crossOriginEmbedderPolicy: false,
+  })
+);
 
 // Rate limiting
 const limiter = rateLimit({
@@ -77,7 +84,7 @@ app.post("/api/auth/login", authLimiter, async (req, res) => {
 
     // Query user from database
     const [users] = await pool.execute(
-      "SELECT id, username, password, email, name, profilePhoto, bio FROM User WHERE username = ?",
+      "SELECT id, username, password, email, name, profilePhoto, bio, role FROM User WHERE username = ?",
       [username]
     );
 
@@ -92,7 +99,7 @@ app.post("/api/auth/login", authLimiter, async (req, res) => {
 
     // Compare password using bcrypt
     const isPasswordValid = await bcrypt.compare(password, user.password);
-    
+
     if (!isPasswordValid) {
       return res.status(401).json({
         success: false,
@@ -101,7 +108,12 @@ app.post("/api/auth/login", authLimiter, async (req, res) => {
     }
 
     // Generate JWT token
-    const token = generateToken(user.id, user.username, user.email);
+    const token = generateToken(
+      user.id,
+      user.username,
+      user.email,
+      user.role || "user"
+    );
 
     res.json({
       success: true,
@@ -112,6 +124,7 @@ app.post("/api/auth/login", authLimiter, async (req, res) => {
         name: user.name,
         profilePhoto: user.profilePhoto,
         bio: user.bio,
+        role: user.role || "user",
       },
       token,
     });
@@ -180,12 +193,12 @@ app.post("/api/auth/register", authLimiter, async (req, res) => {
 
     // Create user
     const [result] = await pool.execute(
-      "INSERT INTO User (username, email, password, firstName, lastName, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, NOW(), NOW())",
+      "INSERT INTO User (username, email, password, firstName, lastName, role, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, 'user', NOW(), NOW())",
       [username, email, hashedPassword, firstName, lastName]
     );
 
     // Generate JWT token
-    const token = generateToken(result.insertId, username, email);
+    const token = generateToken(result.insertId, username, email, "user");
 
     res.status(201).json({
       success: true,
@@ -240,107 +253,131 @@ app.get("/api/users", async (req, res) => {
 });
 
 // PUT /api/users/:id - Update user profile (Protected)
-app.put("/api/users/:id", authenticateToken, authorizeOwner, async (req, res) => {
-  try {
-    const userId = parseInt(req.params.id);
-    const { username, name, bio, profilePhoto, currentPassword, newPassword } =
-      req.body;
+app.put(
+  "/api/users/:id",
+  authenticateToken,
+  authorizeOwner,
+  async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      const {
+        username,
+        name,
+        bio,
+        profilePhoto,
+        currentPassword,
+        newPassword,
+      } = req.body;
 
-    // If changing password, verify current password first
-    if (newPassword) {
-      if (!currentPassword) {
-        return res.status(400).json({
-          success: false,
-          error: "Current password required to change password",
-        });
+      // If changing password, verify current password first
+      if (newPassword) {
+        if (!currentPassword) {
+          return res.status(400).json({
+            success: false,
+            error: "Current password required to change password",
+          });
+        }
+
+        if (newPassword.length < 6) {
+          return res.status(400).json({
+            success: false,
+            error: "New password must be at least 6 characters",
+          });
+        }
+
+        const [users] = await pool.execute(
+          "SELECT password FROM User WHERE id = ?",
+          [userId]
+        );
+
+        if (users.length === 0) {
+          return res.status(404).json({
+            success: false,
+            error: "User not found",
+          });
+        }
+
+        // Verify current password with bcrypt
+        const isPasswordValid = await bcrypt.compare(
+          currentPassword,
+          users[0].password
+        );
+
+        if (!isPasswordValid) {
+          return res.status(401).json({
+            success: false,
+            error: "Current password is incorrect",
+          });
+        }
+
+        // Hash new password
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+        // Update with new password
+        await pool.execute(
+          "UPDATE User SET username = ?, name = ?, bio = ?, profilePhoto = ?, password = ? WHERE id = ?",
+          [username, name, bio, profilePhoto, hashedPassword, userId]
+        );
+      } else {
+        // Update without password change
+        await pool.execute(
+          "UPDATE User SET username = ?, name = ?, bio = ?, profilePhoto = ? WHERE id = ?",
+          [username, name, bio, profilePhoto, userId]
+        );
       }
 
-      if (newPassword.length < 6) {
-        return res.status(400).json({
-          success: false,
-          error: "New password must be at least 6 characters",
-        });
-      }
-
-      const [users] = await pool.execute(
-        "SELECT password FROM User WHERE id = ?",
+      // Fetch updated user data
+      const [updatedUsers] = await pool.execute(
+        "SELECT id, username, email, name, profilePhoto, bio FROM User WHERE id = ?",
         [userId]
       );
 
-      if (users.length === 0) {
+      if (updatedUsers.length === 0) {
         return res.status(404).json({
           success: false,
           error: "User not found",
         });
       }
 
-      // Verify current password with bcrypt
-      const isPasswordValid = await bcrypt.compare(currentPassword, users[0].password);
-      
-      if (!isPasswordValid) {
-        return res.status(401).json({
-          success: false,
-          error: "Current password is incorrect",
-        });
-      }
-
-      // Hash new password
-      const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-      // Update with new password
-      await pool.execute(
-        "UPDATE User SET username = ?, name = ?, bio = ?, profilePhoto = ?, password = ? WHERE id = ?",
-        [username, name, bio, profilePhoto, hashedPassword, userId]
-      );
-    } else {
-      // Update without password change
-      await pool.execute(
-        "UPDATE User SET username = ?, name = ?, bio = ?, profilePhoto = ? WHERE id = ?",
-        [username, name, bio, profilePhoto, userId]
-      );
-    }
-
-    // Fetch updated user data
-    const [updatedUsers] = await pool.execute(
-      "SELECT id, username, email, name, profilePhoto, bio FROM User WHERE id = ?",
-      [userId]
-    );
-
-    if (updatedUsers.length === 0) {
-      return res.status(404).json({
+      res.json({
+        success: true,
+        user: updatedUsers[0],
+      });
+    } catch (error) {
+      console.error("Error updating user profile:", error);
+      res.status(500).json({
         success: false,
-        error: "User not found",
+        error: "Failed to update profile",
+        message: error.message,
       });
     }
-
-    res.json({
-      success: true,
-      user: updatedUsers[0],
-    });
-  } catch (error) {
-    console.error("Error updating user profile:", error);
-    res.status(500).json({
-      success: false,
-      error: "Failed to update profile",
-      message: error.message,
-    });
   }
-});
+);
 
 // GET /api/devlogs - Get all dev log entries
 app.get("/api/devlogs", async (req, res) => {
   try {
     const { published, limit, offset } = req.query;
 
-    let query = "SELECT * FROM DevLog";
+    let query = `
+      SELECT 
+        DevLog.*,
+        User.id as authorId,
+        User.username as authorUsername,
+        User.firstName as authorFirstName,
+        User.lastName as authorLastName,
+        User.profilePhoto as authorProfilePhoto
+      FROM DevLog
+      LEFT JOIN User ON DevLog.createdBy = User.id
+    `;
     const params = [];
 
     if (published !== undefined) {
-      query += " WHERE isPublished = ?";
+      query += " WHERE DevLog.isPublished = ?";
       params.push(published === "true" ? 1 : 0);
     }
 
-    query += " ORDER BY createdAt DESC";
+    query += " ORDER BY DevLog.createdAt DESC";
 
     if (limit) {
       query += " LIMIT ?";
@@ -360,10 +397,17 @@ app.get("/api/devlogs", async (req, res) => {
       published !== undefined ? [published === "true" ? 1 : 0] : []
     );
 
-    // Convert MySQL boolean integers to actual booleans
+    // Convert MySQL boolean integers to actual booleans and format author info
     const formattedEntries = entries.map((entry) => ({
       ...entry,
       isPublished: Boolean(entry.isPublished),
+      author: {
+        id: entry.authorId,
+        username: entry.authorUsername,
+        firstName: entry.authorFirstName,
+        lastName: entry.authorLastName,
+        profilePhoto: entry.authorProfilePhoto,
+      },
     }));
 
     res.json({
@@ -549,6 +593,244 @@ app.delete("/api/devlogs/:id", authenticateToken, async (req, res) => {
     });
   }
 });
+
+// ==================== ADMIN USER MANAGEMENT ENDPOINTS ====================
+
+// GET /api/admin/users - List all users (super_admin only)
+app.get(
+  "/api/admin/users",
+  authenticateToken,
+  requireRole("super_admin"),
+  async (req, res) => {
+    try {
+      const [users] = await pool.execute(
+        "SELECT id, username, email, firstName, lastName, role, createdAt, updatedAt FROM User ORDER BY createdAt DESC"
+      );
+
+      res.json({
+        success: true,
+        users: users,
+        count: users.length,
+      });
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to fetch users",
+        message: error.message,
+      });
+    }
+  }
+);
+
+// POST /api/admin/users - Create new user (super_admin only)
+app.post(
+  "/api/admin/users",
+  authenticateToken,
+  requireRole("super_admin"),
+  async (req, res) => {
+    try {
+      const {
+        username,
+        email,
+        password,
+        firstName,
+        lastName,
+        role = "user",
+      } = req.body;
+
+      // Validation
+      if (!username || !email || !password || !firstName || !lastName) {
+        return res.status(400).json({
+          success: false,
+          error: "All fields are required",
+        });
+      }
+
+      // Validate role
+      const validRoles = ["user", "admin", "super_admin"];
+      if (!validRoles.includes(role)) {
+        return res.status(400).json({
+          success: false,
+          error: "Invalid role. Must be user, admin, or super_admin",
+        });
+      }
+
+      // Validate password strength
+      if (password.length < 6) {
+        return res.status(400).json({
+          success: false,
+          error: "Password must be at least 6 characters",
+        });
+      }
+
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({
+          success: false,
+          error: "Invalid email format",
+        });
+      }
+
+      // Check if username or email already exists
+      const [existingUsers] = await pool.execute(
+        "SELECT id FROM User WHERE username = ? OR email = ?",
+        [username, email]
+      );
+
+      if (existingUsers.length > 0) {
+        return res.status(409).json({
+          success: false,
+          error: "Username or email already exists",
+        });
+      }
+
+      // Hash password
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      // Create user
+      const [result] = await pool.execute(
+        "INSERT INTO User (username, email, password, firstName, lastName, role, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())",
+        [username, email, hashedPassword, firstName, lastName, role]
+      );
+
+      res.status(201).json({
+        success: true,
+        message: "User created successfully",
+        user: {
+          id: result.insertId,
+          username,
+          email,
+          firstName,
+          lastName,
+          role,
+        },
+      });
+    } catch (error) {
+      console.error("Error creating user:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to create user",
+        message: error.message,
+      });
+    }
+  }
+);
+
+// PATCH /api/admin/users/:id/role - Update user role (super_admin only)
+app.patch(
+  "/api/admin/users/:id/role",
+  authenticateToken,
+  requireRole("super_admin"),
+  async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      const { role } = req.body;
+
+      // Validation
+      const validRoles = ["user", "admin", "super_admin"];
+      if (!role || !validRoles.includes(role)) {
+        return res.status(400).json({
+          success: false,
+          error: "Invalid role. Must be user, admin, or super_admin",
+        });
+      }
+
+      // Check if user exists
+      const [users] = await pool.execute(
+        "SELECT id, username FROM User WHERE id = ?",
+        [userId]
+      );
+
+      if (users.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: "User not found",
+        });
+      }
+
+      // Prevent changing own role
+      if (userId === req.user.userId) {
+        return res.status(403).json({
+          success: false,
+          error: "You cannot change your own role",
+        });
+      }
+
+      // Update role
+      await pool.execute(
+        "UPDATE User SET role = ?, updatedAt = NOW() WHERE id = ?",
+        [role, userId]
+      );
+
+      res.json({
+        success: true,
+        message: "User role updated successfully",
+        user: {
+          id: userId,
+          username: users[0].username,
+          role,
+        },
+      });
+    } catch (error) {
+      console.error("Error updating user role:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to update user role",
+        message: error.message,
+      });
+    }
+  }
+);
+
+// DELETE /api/admin/users/:id - Delete user (super_admin only)
+app.delete(
+  "/api/admin/users/:id",
+  authenticateToken,
+  requireRole("super_admin"),
+  async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+
+      // Check if user exists
+      const [users] = await pool.execute(
+        "SELECT id, username FROM User WHERE id = ?",
+        [userId]
+      );
+
+      if (users.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: "User not found",
+        });
+      }
+
+      // Prevent deleting own account
+      if (userId === req.user.userId) {
+        return res.status(403).json({
+          success: false,
+          error: "You cannot delete your own account",
+        });
+      }
+
+      // Delete user (cascade will delete their dev logs)
+      await pool.execute("DELETE FROM User WHERE id = ?", [userId]);
+
+      res.json({
+        success: true,
+        message: "User deleted successfully",
+      });
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to delete user",
+        message: error.message,
+      });
+    }
+  }
+);
 
 // Start server
 app.listen(PORT, "0.0.0.0", () => {

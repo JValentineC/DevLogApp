@@ -1,0 +1,26 @@
+# Step-by-step migration commands
+# Run these one at a time in your SSH session
+
+# 1. Create backup
+mysqldump -h devlogs.db -u jvc -p devlogs > /home/tmp/backup_before_migration.sql
+
+# 2. Check current emails
+mysql -h devlogs.db -u jvc -p devlogs -e "SELECT id, email, username FROM User WHERE email NOT LIKE '%@icstars.org';"
+
+# 3. Update emails to @icstars.org format
+mysql -h devlogs.db -u jvc -p devlogs -e "UPDATE User SET email = CONCAT(username, '@icstars.org') WHERE email NOT LIKE '%@icstars.org';"
+
+# 4. Verify email update
+mysql -h devlogs.db -u jvc -p devlogs -e "SELECT id, email, username FROM User;"
+
+# 5. Run the migration script
+mysql -h devlogs.db -u jvc -p devlogs < /home/tmp/migrate-to-new-schema.sql
+
+# 6. Verify User table structure
+mysql -h devlogs.db -u jvc -p devlogs -e "DESCRIBE User;"
+
+# 7. Check Tag table
+mysql -h devlogs.db -u jvc -p devlogs -e "SELECT * FROM Tag LIMIT 5;"
+
+# 8. Verify migration success
+mysql -h devlogs.db -u jvc -p devlogs -e "SELECT firstName, lastName, email FROM User;"

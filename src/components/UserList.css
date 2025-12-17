@@ -1,0 +1,150 @@
+/* UserList.css */
+
+.user-list {
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.user-list__header {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.user-list__header h2 {
+  font-size: 2.5rem;
+  color: #343a40;
+  margin-bottom: 0.5rem;
+}
+
+.user-list__header p {
+  color: #6c757d;
+  font-size: 1.1rem;
+}
+
+.user-list__loading,
+.user-list__error,
+.user-list__empty {
+  text-align: center;
+  padding: 4rem 2rem;
+}
+
+.spinner {
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #dc3545;
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.user-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+.user-card {
+  background: white;
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.user-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+}
+
+.user-card__avatar {
+  margin-bottom: 1.5rem;
+}
+
+.user-card__avatar img {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 4px solid #dc3545;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  background-color: #343a40;
+  padding: 0.5rem;
+}
+
+.user-card__info {
+  width: 100%;
+}
+
+.user-card__info h3 {
+  font-size: 1.5rem;
+  color: #343a40;
+  margin-bottom: 0.25rem;
+}
+
+.user-card__username {
+  color: #6c757d;
+  font-size: 0.95rem;
+  margin-bottom: 1rem;
+}
+
+.user-card__bio {
+  color: #495057;
+  font-size: 0.95rem;
+  margin-bottom: 1.5rem;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.user-card__stats {
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e9ecef;
+}
+
+.stat {
+  color: #495057;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+@media (max-width: 768px) {
+  .user-list {
+    padding: 1rem;
+  }
+
+  .user-list__header h2 {
+    font-size: 2rem;
+  }
+
+  .user-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  .user-card__avatar img {
+    width: 100px;
+    height: 100px;
+  }
+}

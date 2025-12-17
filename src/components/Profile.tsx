@@ -9,6 +9,7 @@ interface ProfileProps {
     name?: string;
     profilePhoto?: string;
     bio?: string;
+    role?: "user" | "admin" | "super_admin";
   };
   onProfileUpdate: (updatedUser: any) => void;
 }
