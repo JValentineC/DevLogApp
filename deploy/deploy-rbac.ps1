@@ -37,7 +37,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host "Step 2: Running database migration..." -ForegroundColor Green
-Write-Host "You will be prompted for the database password: codingWinterBella<3!=" -ForegroundColor Yellow
+Write-Host "You will be prompted for the database password" -ForegroundColor Yellow
 Write-Host ""
 
 # Run migration
