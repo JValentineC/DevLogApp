@@ -5,6 +5,8 @@ import dotenv from "dotenv";
 import bcrypt from "bcryptjs";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
+import speakeasy from "speakeasy";
+import jwt from "jsonwebtoken";
 import {
   authenticateToken,
   authorizeOwner,
@@ -14,9 +16,18 @@ import {
 
 // Load environment variables
 dotenv.config();
+// Load from protected folder (NFSN deployment)
+try {
+  dotenv.config({ path: "/home/protected/.env", override: true });
+} catch (e) {
+  console.error("Could not load /home/protected/.env:", e.message);
+}
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Trust proxy - required for NFSN deployment
+app.set("trust proxy", 1);
 
 // Create MySQL connection pool
 const pool = mysql.createPool({
@@ -84,7 +95,7 @@ app.post("/api/auth/login", authLimiter, async (req, res) => {
 
     // Query user from database
     const [users] = await pool.execute(
-      "SELECT id, username, password, email, name, profilePhoto, bio, role FROM User WHERE username = ?",
+      "SELECT id, username, password, email, name, profilePhoto, bio, role, twoFactorEnabled, twoFactorSecret, backupCodes FROM User WHERE username = ?",
       [username]
     );
 
@@ -106,6 +117,28 @@ app.post("/api/auth/login", authLimiter, async (req, res) => {
         error: "Invalid username or password",
       });
     }
+
+    // Check if 2FA is enabled
+    if (user.twoFactorEnabled) {
+      // Generate a temporary token for 2FA verification (expires in 5 minutes)
+      const tempToken = jwt.sign(
+        { userId: user.id, purpose: "2fa-verification" },
+        process.env.JWT_SECRET,
+        { expiresIn: "5m" }
+      );
+
+      return res.json({
+        success: true,
+        requires2FA: true,
+        tempToken,
+        userId: user.id,
+      });
+    }
+
+    // Update last login timestamp
+    await pool.execute("UPDATE User SET lastLoginAt = NOW() WHERE id = ?", [
+      user.id,
+    ]);
 
     // Generate JWT token
     const token = generateToken(
@@ -133,6 +166,133 @@ app.post("/api/auth/login", authLimiter, async (req, res) => {
     res.status(500).json({
       success: false,
       error: "Login failed",
+      message: error.message,
+    });
+  }
+});
+
+// POST /api/auth/verify-2fa - Verify 2FA code
+app.post("/api/auth/verify-2fa", authLimiter, async (req, res) => {
+  try {
+    const { userId, token, tempToken } = req.body;
+
+    if (!userId || !token || !tempToken) {
+      return res.status(400).json({
+        success: false,
+        error: "User ID, token, and tempToken are required",
+      });
+    }
+
+    // Verify the temporary token
+    try {
+      const decoded = jwt.verify(tempToken, process.env.JWT_SECRET);
+      if (
+        decoded.userId !== parseInt(userId) ||
+        decoded.purpose !== "2fa-verification"
+      ) {
+        return res.status(401).json({
+          success: false,
+          error: "Invalid temporary token",
+        });
+      }
+    } catch (err) {
+      return res.status(401).json({
+        success: false,
+        error: "Temporary token expired or invalid",
+      });
+    }
+
+    // Get user's 2FA settings
+    const [users] = await pool.execute(
+      "SELECT id, username, email, name, profilePhoto, bio, role, twoFactorSecret, backupCodes FROM User WHERE id = ?",
+      [userId]
+    );
+
+    if (users.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: "User not found",
+      });
+    }
+
+    const user = users[0];
+
+    // Remove any spaces or dashes from the token
+    const cleanToken = token.replace(/[\s-]/g, "");
+
+    let isValid = false;
+
+    // First, try to verify as TOTP code
+    if (user.twoFactorSecret) {
+      isValid = speakeasy.totp.verify({
+        secret: user.twoFactorSecret,
+        encoding: "base32",
+        token: cleanToken,
+        window: 2, // Allow 2 time steps before/after current time
+      });
+    }
+
+    // If TOTP failed, try backup codes
+    if (!isValid && user.backupCodes) {
+      try {
+        const backupCodes = JSON.parse(user.backupCodes);
+        if (Array.isArray(backupCodes)) {
+          const codeIndex = backupCodes.findIndex(
+            (code) => code === cleanToken
+          );
+          if (codeIndex !== -1) {
+            // Valid backup code - remove it from the list
+            backupCodes.splice(codeIndex, 1);
+            await pool.execute("UPDATE User SET backupCodes = ? WHERE id = ?", [
+              JSON.stringify(backupCodes),
+              userId,
+            ]);
+            isValid = true;
+          }
+        }
+      } catch (e) {
+        console.error("Error parsing backup codes:", e);
+      }
+    }
+
+    if (!isValid) {
+      return res.status(401).json({
+        success: false,
+        error: "Invalid 2FA code",
+      });
+    }
+
+    // Update last login timestamp
+    await pool.execute("UPDATE User SET lastLoginAt = NOW() WHERE id = ?", [
+      user.id,
+    ]);
+
+    // Generate full JWT token
+    const authToken = generateToken(
+      user.id,
+      user.username,
+      user.email,
+      user.role || "user"
+    );
+
+    res.json({
+      success: true,
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        name: user.name,
+        profilePhoto: user.profilePhoto,
+        bio: user.bio,
+        role: user.role || "user",
+      },
+      token: authToken,
+    });
+  } catch (error) {
+    console.error("Error during 2FA verification:", error);
+    res.status(500).json({
+      success: false,
+      error: "2FA verification failed",
       message: error.message,
     });
   }
@@ -252,6 +412,47 @@ app.get("/api/users", async (req, res) => {
   }
 });
 
+// GET /api/users/:id - Get individual user with social links (Protected)
+app.get(
+  "/api/users/:id",
+  authenticateToken,
+  authorizeOwner,
+  async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+
+      const [users] = await pool.execute(
+        `SELECT 
+          u.id, u.username, u.email, u.name, u.profilePhoto, u.bio, u.role,
+          p.linkedInUrl, p.portfolioUrl
+        FROM User u
+        LEFT JOIN Person p ON u.id = p.userId
+        WHERE u.id = ?`,
+        [userId]
+      );
+
+      if (users.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: "User not found",
+        });
+      }
+
+      res.json({
+        success: true,
+        user: users[0],
+      });
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to fetch user",
+        message: error.message,
+      });
+    }
+  }
+);
+
 // PUT /api/users/:id - Update user profile (Protected)
 app.put(
   "/api/users/:id",
@@ -265,6 +466,8 @@ app.put(
         name,
         bio,
         profilePhoto,
+        linkedInUrl,
+        portfolioUrl,
         currentPassword,
         newPassword,
       } = req.body;
@@ -326,9 +529,60 @@ app.put(
         );
       }
 
-      // Fetch updated user data
+      // Handle social links (Person table update/insert)
+      if (linkedInUrl !== undefined || portfolioUrl !== undefined) {
+        // First, check if a Person record exists for this user
+        const [existingPersons] = await pool.execute(
+          "SELECT id FROM Person WHERE userId = ?",
+          [userId]
+        );
+
+        if (existingPersons.length > 0) {
+          // Update existing Person record
+          const personId = existingPersons[0].id;
+          await pool.execute(
+            "UPDATE Person SET linkedInUrl = ?, portfolioUrl = ? WHERE id = ?",
+            [linkedInUrl || null, portfolioUrl || null, personId]
+          );
+        } else {
+          // Create new Person record linked to this user
+          // Get user info to populate required Person fields
+          const [userInfo] = await pool.execute(
+            "SELECT username, name FROM User WHERE id = ?",
+            [userId]
+          );
+
+          if (userInfo.length > 0) {
+            const user = userInfo[0];
+            const nameParts = (user.name || user.username || "").split(" ");
+            const firstName = nameParts[0] || "First";
+            const lastName =
+              nameParts.length > 1 ? nameParts[nameParts.length - 1] : "Last";
+            const fullName = user.name || user.username || "User";
+
+            await pool.execute(
+              "INSERT INTO Person (userId, firstName, lastName, fullName, linkedInUrl, portfolioUrl) VALUES (?, ?, ?, ?, ?, ?)",
+              [
+                userId,
+                firstName,
+                lastName,
+                fullName,
+                linkedInUrl || null,
+                portfolioUrl || null,
+              ]
+            );
+          }
+        }
+      }
+
+      // Fetch updated user data with Person social links
       const [updatedUsers] = await pool.execute(
-        "SELECT id, username, email, name, profilePhoto, bio FROM User WHERE id = ?",
+        `SELECT 
+          u.id, u.username, u.email, u.name, u.profilePhoto, u.bio,
+          p.linkedInUrl, p.portfolioUrl
+        FROM User u
+        LEFT JOIN Person p ON u.id = p.userId
+        WHERE u.id = ?`,
         [userId]
       );
 

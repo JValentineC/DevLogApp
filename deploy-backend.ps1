@@ -9,7 +9,7 @@ Write-Host "🚀 Deploying Backend to NearlyFreeSpeech.NET..." -ForegroundColor 
 # Create a temporary deployment package (exclude node_modules)
 Write-Host "📦 Creating deployment package..." -ForegroundColor Yellow
 $deployFiles = @(
-    "deploy/index-noprisma.js",
+    "deploy/index.js",
     "deploy/package.json",
     "deploy/.env",
     "deploy/config/",
@@ -27,7 +27,4 @@ Write-Host "🔧 Next steps - Run these commands on the server:" -ForegroundColo
 Write-Host "ssh $SERVER" -ForegroundColor White
 Write-Host "cd $REMOTE_DIR" -ForegroundColor White
 Write-Host "npm install" -ForegroundColor White
-Write-Host "node index-noprisma.js" -ForegroundColor White
-Write-Host ""
-Write-Host "Or run this automated deployment:" -ForegroundColor Cyan
-Write-Host "ssh $SERVER 'cd $REMOTE_DIR && npm install && node index-noprisma.js &'" -ForegroundColor White
+Write-Host "node index.js" -ForegroundColor White

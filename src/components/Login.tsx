@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import TwoFactorVerify from "./TwoFactorVerify";
 import "./Login.css";
 
 interface LoginProps {
@@ -12,6 +13,46 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onClose }) => {
   const [error, setError] = useState("");
   const [isRateLimited, setIsRateLimited] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showTwoFactor, setShowTwoFactor] = useState(false);
+  const [tempToken, setTempToken] = useState("");
+  const [userId, setUserId] = useState<number | null>(null);
+
+  const handle2FAVerify = async (token?: string, backupCode?: string) => {
+    try {
+      const API_BASE_URL =
+        import.meta.env.VITE_API_URL || "http://localhost:3001/api";
+
+      const response = await fetch(`${API_BASE_URL}/auth/verify-2fa`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId,
+          token: token || backupCode,
+          tempToken,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "2FA verification failed");
+      }
+
+      if (data.success && data.user) {
+        localStorage.setItem("authToken", data.token);
+        localStorage.setItem("user", JSON.stringify(data.user));
+        onLoginSuccess(data.user);
+      } else {
+        throw new Error("Invalid response from server");
+      }
+    } catch (err) {
+      console.error("2FA verification error:", err);
+      setError(err instanceof Error ? err.message : "2FA verification failed");
+      throw err;
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,6 +88,14 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onClose }) => {
         throw new Error(data.error || "Login failed");
       }
 
+      // Check if 2FA is required
+      if (data.requires2FA) {
+        setTempToken(data.tempToken);
+        setUserId(data.userId);
+        setShowTwoFactor(true);
+        return;
+      }
+
       if (data.success && data.user) {
         // Store auth token in localStorage
         localStorage.setItem("authToken", data.token);
@@ -62,6 +111,25 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onClose }) => {
       setLoading(false);
     }
   };
+
+  if (showTwoFactor) {
+    return (
+      <div className="login-overlay" onClick={onClose}>
+        <div className="login-modal" onClick={(e) => e.stopPropagation()}>
+          <TwoFactorVerify
+            username={username}
+            userId={userId!}
+            onVerify={handle2FAVerify}
+            onCancel={() => {
+              setShowTwoFactor(false);
+              setTempToken("");
+              setUserId(null);
+            }}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="login-overlay" onClick={onClose}>
