@@ -399,15 +399,24 @@ app.get("/api/devlogs", async (req, res) => {
 
     // Convert MySQL boolean integers to actual booleans and format author info
     const formattedEntries = entries.map((entry) => ({
-      ...entry,
+      id: entry.id,
+      title: entry.title,
+      content: entry.content,
+      tags: entry.tags,
       isPublished: Boolean(entry.isPublished),
-      author: {
-        id: entry.authorId,
-        username: entry.authorUsername,
-        firstName: entry.authorFirstName,
-        lastName: entry.authorLastName,
-        profilePhoto: entry.authorProfilePhoto,
-      },
+      createdAt: entry.createdAt,
+      updatedAt: entry.updatedAt,
+      createdBy: entry.createdBy,
+      images: entry.images,
+      author: entry.authorId
+        ? {
+            id: entry.authorId,
+            username: entry.authorUsername,
+            firstName: entry.authorFirstName,
+            lastName: entry.authorLastName,
+            profilePhoto: entry.authorProfilePhoto,
+          }
+        : null,
     }));
 
     res.json({
@@ -430,9 +439,21 @@ app.get("/api/devlogs/:id", async (req, res) => {
   try {
     const { id } = req.params;
 
-    const [entries] = await pool.execute("SELECT * FROM DevLog WHERE id = ?", [
-      id,
-    ]);
+    const [entries] = await pool.execute(
+      `
+      SELECT 
+        DevLog.*,
+        User.id as authorId,
+        User.username as authorUsername,
+        User.firstName as authorFirstName,
+        User.lastName as authorLastName,
+        User.profilePhoto as authorProfilePhoto
+      FROM DevLog
+      LEFT JOIN User ON DevLog.createdBy = User.id
+      WHERE DevLog.id = ?
+    `,
+      [id]
+    );
 
     if (entries.length === 0) {
       return res.status(404).json({
@@ -441,9 +462,31 @@ app.get("/api/devlogs/:id", async (req, res) => {
       });
     }
 
+    const entry = entries[0];
+    const formattedEntry = {
+      id: entry.id,
+      title: entry.title,
+      content: entry.content,
+      tags: entry.tags,
+      isPublished: Boolean(entry.isPublished),
+      createdAt: entry.createdAt,
+      updatedAt: entry.updatedAt,
+      createdBy: entry.createdBy,
+      images: entry.images,
+      author: entry.authorId
+        ? {
+            id: entry.authorId,
+            username: entry.authorUsername,
+            firstName: entry.authorFirstName,
+            lastName: entry.authorLastName,
+            profilePhoto: entry.authorProfilePhoto,
+          }
+        : null,
+    };
+
     res.json({
       success: true,
-      data: entries[0],
+      data: formattedEntry,
     });
   } catch (error) {
     console.error("Error fetching dev log:", error);
@@ -478,14 +521,48 @@ app.post("/api/devlogs", authenticateToken, async (req, res) => {
       [title, content, tags || null, isPublished || false, userId]
     );
 
-    const [newEntry] = await pool.execute("SELECT * FROM DevLog WHERE id = ?", [
-      result.insertId,
-    ]);
+    const [newEntry] = await pool.execute(
+      `
+      SELECT 
+        DevLog.*,
+        User.id as authorId,
+        User.username as authorUsername,
+        User.firstName as authorFirstName,
+        User.lastName as authorLastName,
+        User.profilePhoto as authorProfilePhoto
+      FROM DevLog
+      LEFT JOIN User ON DevLog.createdBy = User.id
+      WHERE DevLog.id = ?
+    `,
+      [result.insertId]
+    );
+
+    const entry = newEntry[0];
+    const formattedEntry = {
+      id: entry.id,
+      title: entry.title,
+      content: entry.content,
+      tags: entry.tags,
+      isPublished: Boolean(entry.isPublished),
+      createdAt: entry.createdAt,
+      updatedAt: entry.updatedAt,
+      createdBy: entry.createdBy,
+      images: entry.images,
+      author: entry.authorId
+        ? {
+            id: entry.authorId,
+            username: entry.authorUsername,
+            firstName: entry.authorFirstName,
+            lastName: entry.authorLastName,
+            profilePhoto: entry.authorProfilePhoto,
+          }
+        : null,
+    };
 
     res.status(201).json({
       success: true,
       message: "Dev log entry created successfully",
-      data: newEntry[0],
+      data: formattedEntry,
     });
   } catch (error) {
     console.error("Error creating dev log:", error);
@@ -534,14 +611,48 @@ app.put("/api/devlogs/:id", authenticateToken, async (req, res) => {
       ]
     );
 
-    const [updated] = await pool.execute("SELECT * FROM DevLog WHERE id = ?", [
-      id,
-    ]);
+    const [updated] = await pool.execute(
+      `
+      SELECT 
+        DevLog.*,
+        User.id as authorId,
+        User.username as authorUsername,
+        User.firstName as authorFirstName,
+        User.lastName as authorLastName,
+        User.profilePhoto as authorProfilePhoto
+      FROM DevLog
+      LEFT JOIN User ON DevLog.createdBy = User.id
+      WHERE DevLog.id = ?
+    `,
+      [id]
+    );
+
+    const entry = updated[0];
+    const formattedEntry = {
+      id: entry.id,
+      title: entry.title,
+      content: entry.content,
+      tags: entry.tags,
+      isPublished: Boolean(entry.isPublished),
+      createdAt: entry.createdAt,
+      updatedAt: entry.updatedAt,
+      createdBy: entry.createdBy,
+      images: entry.images,
+      author: entry.authorId
+        ? {
+            id: entry.authorId,
+            username: entry.authorUsername,
+            firstName: entry.authorFirstName,
+            lastName: entry.authorLastName,
+            profilePhoto: entry.authorProfilePhoto,
+          }
+        : null,
+    };
 
     res.json({
       success: true,
       message: "Dev log entry updated successfully",
-      data: updated[0],
+      data: formattedEntry,
     });
   } catch (error) {
     console.error("Error updating dev log:", error);
@@ -767,7 +878,7 @@ app.patch(
       res.json({
         success: true,
         message: "User role updated successfully",
-        user: {
+        data: {
           id: userId,
           username: users[0].username,
           role,
@@ -826,6 +937,202 @@ app.delete(
       res.status(500).json({
         success: false,
         error: "Failed to delete user",
+        message: error.message,
+      });
+    }
+  }
+);
+
+// ==================== ALUMNI/PERSON ENGAGEMENT ENDPOINTS ====================
+
+// GET /api/people - Get all alumni/person records with filters (admin+ only)
+app.get(
+  "/api/people",
+  authenticateToken,
+  requireRole("admin"),
+  async (req, res) => {
+    try {
+      const {
+        cycleId,
+        isCaptain,
+        search,
+        status,
+        limit = 100,
+        offset = 0,
+      } = req.query;
+
+      let query = `
+        SELECT 
+          p.id,
+          p.firstName,
+          p.middleName,
+          p.lastName,
+          p.fullName,
+          p.orgEmail,
+          p.personalEmail,
+          p.phone,
+          p.linkedInUrl,
+          p.portfolioUrl,
+          p.isICaaMember,
+          p.icaaTier,
+          p.accountStatus,
+          p.createdAt,
+          p.updatedAt,
+          GROUP_CONCAT(DISTINCT c.code ORDER BY c.code SEPARATOR ', ') as cycles,
+          GROUP_CONCAT(DISTINCT c.id ORDER BY c.id) as cycleIds,
+          MAX(CASE WHEN ca.id IS NOT NULL THEN 1 ELSE 0 END) as isCaptain
+        FROM Person p
+        LEFT JOIN CycleMembership cm ON p.id = cm.personId
+        LEFT JOIN Cycle c ON cm.cycleId = c.id
+        LEFT JOIN CaptainAssignment ca ON p.id = ca.personId
+        WHERE 1=1
+      `;
+
+      const params = [];
+
+      // Filter by cycle
+      if (cycleId) {
+        query += ` AND cm.cycleId = ?`;
+        params.push(cycleId);
+      }
+
+      // Filter by captain status
+      if (isCaptain !== undefined) {
+        if (isCaptain === "true" || isCaptain === "1") {
+          query += ` AND ca.id IS NOT NULL`;
+        } else if (isCaptain === "false" || isCaptain === "0") {
+          query += ` AND ca.id IS NULL`;
+        }
+      }
+
+      // Filter by account status
+      if (status) {
+        query += ` AND p.accountStatus = ?`;
+        params.push(status);
+      }
+
+      // Search by name or email
+      if (search) {
+        query += ` AND (
+          p.firstName LIKE ? OR 
+          p.lastName LIKE ? OR 
+          p.fullName LIKE ? OR 
+          p.orgEmail LIKE ? OR 
+          p.personalEmail LIKE ?
+        )`;
+        const searchPattern = `%${search}%`;
+        params.push(
+          searchPattern,
+          searchPattern,
+          searchPattern,
+          searchPattern,
+          searchPattern
+        );
+      }
+
+      query += ` GROUP BY p.id ORDER BY p.lastName, p.firstName`;
+      query += ` LIMIT ? OFFSET ?`;
+      params.push(parseInt(limit), parseInt(offset));
+
+      const [people] = await pool.execute(query, params);
+
+      // Get total count
+      let countQuery = `
+        SELECT COUNT(DISTINCT p.id) as total
+        FROM Person p
+        LEFT JOIN CycleMembership cm ON p.id = cm.personId
+        LEFT JOIN CaptainAssignment ca ON p.id = ca.personId
+        WHERE 1=1
+      `;
+
+      const countParams = [];
+      if (cycleId) {
+        countQuery += ` AND cm.cycleId = ?`;
+        countParams.push(cycleId);
+      }
+      if (isCaptain !== undefined) {
+        if (isCaptain === "true" || isCaptain === "1") {
+          countQuery += ` AND ca.id IS NOT NULL`;
+        } else if (isCaptain === "false" || isCaptain === "0") {
+          countQuery += ` AND ca.id IS NULL`;
+        }
+      }
+      if (status) {
+        countQuery += ` AND p.accountStatus = ?`;
+        countParams.push(status);
+      }
+      if (search) {
+        countQuery += ` AND (
+          p.firstName LIKE ? OR 
+          p.lastName LIKE ? OR 
+          p.fullName LIKE ? OR 
+          p.orgEmail LIKE ? OR 
+          p.personalEmail LIKE ?
+        )`;
+        const searchPattern = `%${search}%`;
+        countParams.push(
+          searchPattern,
+          searchPattern,
+          searchPattern,
+          searchPattern,
+          searchPattern
+        );
+      }
+
+      const [countResult] = await pool.execute(countQuery, countParams);
+
+      res.json({
+        success: true,
+        people: people.map((p) => ({
+          ...p,
+          isCaptain: Boolean(p.isCaptain),
+          isICaaMember: Boolean(p.isICaaMember),
+        })),
+        count: countResult[0].total,
+      });
+    } catch (error) {
+      console.error("Error fetching people:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to fetch people",
+        message: error.message,
+      });
+    }
+  }
+);
+
+// GET /api/cycles - Get all cycles (admin+ only)
+app.get(
+  "/api/cycles",
+  authenticateToken,
+  requireRole("admin"),
+  async (req, res) => {
+    try {
+      const [cycles] = await pool.execute(`
+        SELECT 
+          c.id,
+          c.code,
+          c.city,
+          c.notes,
+          COUNT(DISTINCT cm.personId) as memberCount,
+          COUNT(DISTINCT ca.personId) as captainCount
+        FROM Cycle c
+        LEFT JOIN CycleMembership cm ON c.id = cm.cycleId
+        LEFT JOIN CaptainAssignment ca ON c.id = ca.cycleId
+        GROUP BY c.id
+        ORDER BY c.code
+      `);
+
+      res.json({
+        success: true,
+        cycles: cycles,
+        count: cycles.length,
+      });
+    } catch (error) {
+      console.error("Error fetching cycles:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to fetch cycles",
         message: error.message,
       });
     }

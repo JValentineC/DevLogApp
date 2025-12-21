@@ -9,7 +9,6 @@ import UserList from "./components/UserList";
 import AdminUserManagement from "./components/AdminUserManagement";
 import Engagement from "./components/Engagement";
 import { type DevLogEntry } from "./lib/api";
-import "./App.css";
 
 interface User {
   id: number;

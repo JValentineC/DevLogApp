@@ -38,12 +38,14 @@ A full-stack developer log application built with React, TypeScript, Express, an
 ## UI Components
 
 ### Navigation
+
 - **Drawer Layout** - Collapsible sidebar navigation (always open on desktop)
 - **Responsive Navbar** - Hamburger menu for mobile, persistent sidebar for desktop
 - **User Avatar Dropdown** - Profile and logout options
 - **Icon-based Menu** - Clean icons with tooltips when collapsed
 
 ### Pages
+
 - **Home** - About page and project information
 - **Developer Logs** - Browse and create dev log entries
 - **Profile** - User settings and profile customization
@@ -51,6 +53,7 @@ A full-stack developer log application built with React, TypeScript, Express, an
 - **Engagement** - Alumni tracking and cycle management (admin+)
 
 ### Components
+
 - **DaisyUI Modals** - Entry creation and editing
 - **Status Badges** - Visual indicators for account status
 - **Captain Badges** - Special designation for cycle captains
@@ -140,6 +143,7 @@ npm run deploy
 ## Database Schema
 
 ### Core Tables
+
 - **User** - User accounts with role-based access (user, admin, super_admin)
 - **DevLog** - Developer log entries with author information
 - **Person** - Alumni/members with contact information
@@ -153,9 +157,11 @@ npm run deploy
 ## API Endpoints
 
 ### Authentication
+
 - `POST /api/auth/login` - User login with rate limiting
 
 ### User Management
+
 - `PUT /api/users/:id` - Update user profile
 - `PATCH /api/users/:id/password` - Change password
 - `GET /api/users` - Get all users (authenticated)
@@ -163,6 +169,7 @@ npm run deploy
 - `DELETE /api/users/:id` - Delete user (super admin only)
 
 ### DevLogs
+
 - `GET /api/devlogs` - Get all dev logs (with filters)
 - `GET /api/devlogs/:id` - Get single dev log
 - `POST /api/devlogs` - Create new dev log (authenticated)
@@ -170,6 +177,7 @@ npm run deploy
 - `DELETE /api/devlogs/:id` - Delete dev log (owner/admin)
 
 ### Alumni Engagement (Admin+)
+
 - `GET /api/people` - Get alumni with filtering
 - `GET /api/cycles` - Get all cycles with member counts
 
@@ -181,11 +189,13 @@ npm run deploy
 ## Screenshots
 
 ### Desktop - Drawer Layout
+
 - Persistent sidebar with icon navigation
 - Responsive content area
 - User avatar dropdown
 
 ### Mobile - Collapsible Menu
+
 - Hamburger menu toggle
 - Full-width content
 - Touch-optimized interface

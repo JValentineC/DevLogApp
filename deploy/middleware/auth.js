@@ -88,6 +88,7 @@ export const authorizeOwner = (req, res, next) => {
 /**
  * Middleware to check if user has required role
  * Usage: requireRole('admin') or requireRole(['admin', 'super_admin'])
+ * Note: super_admin users automatically pass all role checks
  */
 export const requireRole = (...allowedRoles) => {
   return (req, res, next) => {
@@ -100,6 +101,11 @@ export const requireRole = (...allowedRoles) => {
 
     const userRole = req.user.role || "user";
     const roles = allowedRoles.flat(); // Flatten in case array is passed
+
+    // super_admin has access to everything
+    if (userRole === "super_admin") {
+      return next();
+    }
 
     if (!roles.includes(userRole)) {
       return res.status(403).json({

@@ -22,6 +22,7 @@ model User {
   
   // Profile
   username     String   @unique @db.VarChar(50)
+  role         String   @default("user") @db.VarChar(20) // 'user', 'admin', 'super_admin'
   profilePhoto String?  @db.Text
   bio          String?  @db.Text
   
@@ -31,8 +32,170 @@ model User {
   
   // Relations
   devLogs      DevLog[]
+  person       Person?  // Optional link to Person table
   
   @@map("User")
+}
+
+model Person {
+  id              Int       @id @default(autoincrement())
+  userId          Int?      @unique
+  
+  // Name fields
+  firstName       String    @db.VarChar(100)
+  middleName      String?   @db.VarChar(100)
+  lastName        String    @db.VarChar(100)
+  fullName        String    @db.VarChar(255) // Computed/stored in application
+  
+  // Email fields
+  orgEmail        String?   @unique @db.VarChar(255) // Must end with @icstars.org when present
+  personalEmail   String?   @unique @db.VarChar(255)
+  
+  // Contact & Links
+  phone           String?   @db.VarChar(50)
+  linkedInUrl     String?   @db.VarChar(500)
+  portfolioUrl    String?   @db.VarChar(500)
+  
+  // iCAA Membership convenience flags (synced from ICaaMembership)
+  isICaaMember    Boolean   @default(false) @db.TinyInt
+  icaaTier        String?   @db.VarChar(20) // 'free','monthly','yearly','lifetime'
+  
+  // Account status
+  accountStatus   String    @default("unclaimed") @db.VarChar(20) // 'unclaimed','invited','signed_up','deactivated'
+  
+  // Timestamps
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  // Relations
+  user                User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+  cycleMemberships    CycleMembership[]
+  captainAssignments  CaptainAssignment[]
+  icaaMemberships     ICaaMembership[]
+  resumes             Resume[]
+  jobSeekingProfile   JobSeekingProfile?
+  
+  @@index([lastName])
+  @@index([accountStatus])
+  @@map("Person")
+}
+
+model Cycle {
+  id         Int      @id @default(autoincrement())
+  code       String   @unique @db.VarChar(50) // e.g., "CHI-50", "Cycle 50"
+  city       String?  @db.VarChar(100)
+  startDate  DateTime? @db.Date
+  endDate    DateTime? @db.Date
+  notes      String?  @db.Text
+  
+  // Relations
+  cycleMemberships    CycleMembership[]
+  captainAssignments  CaptainAssignment[]
+  
+  @@map("Cycle")
+}
+
+model CycleMembership {
+  id         Int       @id @default(autoincrement())
+  cycleId    Int
+  personId   Int
+  startDate  DateTime? @db.Date
+  endDate    DateTime? @db.Date
+  status     String    @default("active") @db.VarChar(20) // 'active','graduated','withdrawn','alumni'
+  
+  // Relations
+  cycle      Cycle     @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  person     Person    @relation(fields: [personId], references: [id], onDelete: Cascade)
+  
+  @@unique([cycleId, personId])
+  @@index([cycleId])
+  @@index([personId])
+  @@index([status])
+  @@map("CycleMembership")
+}
+
+model CaptainAssignment {
+  id         Int       @id @default(autoincrement())
+  cycleId    Int
+  personId   Int
+  role       String    @default("captain") @db.VarChar(20) // 'captain','co-captain','lead'
+  startDate  DateTime? @db.Date
+  endDate    DateTime? @db.Date
+  notes      String?   @db.Text
+  
+  // Relations
+  cycle      Cycle     @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  person     Person    @relation(fields: [personId], references: [id], onDelete: Cascade)
+  
+  @@unique([cycleId, personId, role, startDate])
+  @@index([cycleId])
+  @@index([personId])
+  @@map("CaptainAssignment")
+}
+
+model ICaaMembership {
+  id             Int       @id @default(autoincrement())
+  personId       Int
+  tier           String    @db.VarChar(20) // 'free','monthly','yearly','lifetime'
+  status         String    @default("active") @db.VarChar(20) // 'active','cancelled','expired','lapsed'
+  startDate      DateTime  @db.Date
+  endDate        DateTime? @db.Date
+  autoRenew      Boolean   @default(false) @db.TinyInt
+  lastPaymentAt  DateTime?
+  notes          String?   @db.Text
+  
+  // Relations
+  person         Person    @relation(fields: [personId], references: [id], onDelete: Cascade)
+  
+  @@index([personId])
+  @@index([status])
+  @@index([startDate, endDate])
+  @@map("ICaaMembership")
+}
+
+model Resume {
+  id              Int       @id @default(autoincrement())
+  personId        Int
+  versionLabel    String?   @db.VarChar(100) // e.g., "2025-12 Chicago"
+  fileUrl         String?   @db.VarChar(1000)
+  fileMimeType    String?   @db.VarChar(100)
+  fileSizeBytes   BigInt?
+  fileHashSha256  String?   @db.Char(64)
+  fileBlob        Bytes?    @db.LongBlob
+  isCurrent       Boolean   @default(false) @db.TinyInt
+  uploadedAt      DateTime  @default(now())
+  notes           String?   @db.Text
+  
+  // Relations
+  person          Person    @relation(fields: [personId], references: [id], onDelete: Cascade)
+  
+  @@index([personId])
+  @@index([isCurrent])
+  @@map("Resume")
+}
+
+model JobSeekingProfile {
+  id                   Int       @id @default(autoincrement())
+  personId             Int       @unique
+  desiredTitle         String    @db.VarChar(255) // e.g., "Junior Software Engineer"
+  roleFamily           String    @default("other") @db.VarChar(20) // 'software','data','cloud','security','qa','devops','product','design','it-support','other'
+  skillsSummary        String?   @db.Text
+  skillsKeywords       Json?     // e.g., ["React","Node","SQL"]
+  preferredLocations   Json?     // e.g., ["Chicago, IL","Remote"]
+  remotePreference     String    @default("no-preference") @db.VarChar(20) // 'remote','hybrid','onsite','no-preference'
+  availabilityDate     DateTime? @db.Date
+  workAuthorization    String    @default("Prefer-not-to-say") @db.VarChar(30) // 'US-citizen','GC','EAD','H1B','Other','Prefer-not-to-say'
+  desiredSalaryMin     Int?
+  desiredSalaryMax     Int?
+  openToContract       Boolean   @default(true) @db.TinyInt
+  openToFullTime       Boolean   @default(true) @db.TinyInt
+  jobSearchStatus      String    @default("active") @db.VarChar(20) // 'not-looking','casual','active','interviewing','offer-stage','accepted','on-hold'
+  updatedAt            DateTime  @updatedAt
+  
+  // Relations
+  person               Person    @relation(fields: [personId], references: [id], onDelete: Cascade)
+  
+  @@map("JobSeekingProfile")
 }
 
 model DevLog {
