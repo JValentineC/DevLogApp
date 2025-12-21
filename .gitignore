@@ -26,6 +26,11 @@ deploy/node_modules/
 deploy/migrate-passwords.js
 EXECUTE_MIGRATION.txt
 
+# Utility scripts (not needed in repo)
+bfg-*.jar
+generate-hash.js
+generate-alumni-import.js
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

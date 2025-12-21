@@ -18,7 +18,7 @@
 }
 
 .user-list__header p {
-  color: #6c757d;
+  color: #495057;
   font-size: 1.1rem;
 }
 
@@ -30,7 +30,7 @@
 }
 
 .spinner {
-  border: 3px solid #f3f3f3;
+  border: 3px solid #ced4da;
   border-top: 3px solid #dc3545;
   border-radius: 50%;
   width: 50px;
@@ -99,7 +99,7 @@
 }
 
 .user-card__username {
-  color: #6c757d;
+  color: #495057;
   font-size: 0.95rem;
   margin-bottom: 1rem;
 }
@@ -120,7 +120,7 @@
   justify-content: center;
   gap: 1.5rem;
   padding-top: 1rem;
-  border-top: 1px solid #e9ecef;
+  border-top: 1px solid #adb5bd;
 }
 
 .stat {

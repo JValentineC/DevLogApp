@@ -10,11 +10,13 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onClose }) => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [isRateLimited, setIsRateLimited] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setIsRateLimited(false);
     setLoading(true);
 
     try {
@@ -32,6 +34,16 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onClose }) => {
       const data = await response.json();
 
       if (!response.ok) {
+        // Check for rate limit error
+        if (
+          response.status === 429 ||
+          data.error?.toLowerCase().includes("too many")
+        ) {
+          setIsRateLimited(true);
+          throw new Error(
+            "Too many login attempts. Please wait 15 minutes before trying again."
+          );
+        }
         throw new Error(data.error || "Login failed");
       }
 
@@ -62,7 +74,21 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onClose }) => {
         </div>
 
         <form onSubmit={handleSubmit} className="login-form">
-          {error && <div className="login-error">{error}</div>}
+          {error && (
+            <div
+              className={`login-error ${
+                isRateLimited ? "rate-limit-error" : ""
+              }`}
+            >
+              {isRateLimited && (
+                <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>
+                  ⏱️
+                </div>
+              )}
+              <strong>{isRateLimited ? "Rate Limit Exceeded" : "Error"}</strong>
+              <div style={{ marginTop: "0.5rem" }}>{error}</div>
+            </div>
+          )}
 
           <div className="form-group">
             <label htmlFor="username">Username</label>

@@ -7,6 +7,7 @@ import Login from "./components/Login";
 import Profile from "./components/Profile";
 import UserList from "./components/UserList";
 import AdminUserManagement from "./components/AdminUserManagement";
+import Engagement from "./components/Engagement";
 import { type DevLogEntry } from "./lib/api";
 import "./App.css";
 
@@ -25,7 +26,7 @@ function App() {
   const [showLogin, setShowLogin] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [currentPage, setCurrentPage] = useState<
-    "home" | "logs" | "profile" | "admin"
+    "home" | "logs" | "profile" | "admin" | "engagement"
   >("home");
   const [user, setUser] = useState<User | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
@@ -93,259 +94,363 @@ function App() {
 
   return (
     <>
-      <header className="app-header">
-        <div className="header-container">
-          <div className="header-top">
-            <h1 className="site-title">JVC's Dev Log</h1>
-            {currentPage === "logs" && (
-              <div className="header-actions">
-                {user ? (
+      <div className="drawer lg:drawer-open">
+        <input id="my-drawer" type="checkbox" className="drawer-toggle" />
+
+        {/* Main content area */}
+        <div className="drawer-content flex flex-col">
+          {/* Navbar */}
+          <nav className="navbar w-full bg-base-300">
+            <div className="flex-none">
+              <label
+                htmlFor="my-drawer"
+                aria-label="open sidebar"
+                className="btn btn-square btn-ghost lg:hidden"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  strokeLinejoin="round"
+                  strokeLinecap="round"
+                  strokeWidth="2"
+                  fill="none"
+                  stroke="currentColor"
+                  className="size-5"
+                >
+                  <path d="M4 6h16M4 12h16M4 18h16"></path>
+                </svg>
+              </label>
+            </div>
+            <div className="flex-1 px-4 text-xl font-bold">JVC's Dev Log</div>
+            <div className="flex-none gap-2">
+              {currentPage === "logs" && user && (
+                <>
+                  <button
+                    onClick={() => setShowLogger(!showLogger)}
+                    className="btn btn-primary btn-sm"
+                  >
+                    {showLogger ? "✕ Close" : "+ New Entry"}
+                  </button>
+                </>
+              )}
+              {user ? (
+                <div className="dropdown dropdown-end">
+                  <div
+                    tabIndex={0}
+                    role="button"
+                    className="btn btn-ghost btn-circle avatar placeholder"
+                  >
+                    <div className="bg-neutral text-neutral-content w-10 rounded-full">
+                      <span className="text-xl">
+                        {user.username.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                  </div>
+                  <ul
+                    tabIndex={0}
+                    className="menu menu-sm dropdown-content bg-base-100 rounded-box z-[1] mt-3 w-52 p-2 shadow"
+                  >
+                    <li className="menu-title">
+                      <span>Hi, {user.username}</span>
+                    </li>
+                    <li>
+                      <a onClick={() => setCurrentPage("profile")}>Profile</a>
+                    </li>
+                    <li>
+                      <a onClick={handleLogout}>Logout</a>
+                    </li>
+                  </ul>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowLogin(true)}
+                  className="btn btn-primary btn-sm"
+                >
+                  Login
+                </button>
+              )}
+            </div>
+          </nav>
+
+          {/* Page content */}
+          <div className="flex-1 p-4">
+            {currentPage === "logs" ? (
+              <>
+                {user || selectedUserId ? (
                   <>
-                    <span className="user-greeting">Hi, {user.username}</span>
-                    <button
-                      onClick={() => setShowLogger(!showLogger)}
-                      className="btn-new-entry"
-                    >
-                      {showLogger ? "✕ Close" : "+ New Entry"}
-                    </button>
-                    <button onClick={handleLogout} className="btn-logout">
-                      Logout
-                    </button>
+                    {selectedUserId && !user && (
+                      <button
+                        onClick={handleBackToUserList}
+                        className="btn btn-secondary mb-4"
+                      >
+                        ← Back to Users
+                      </button>
+                    )}
+                    <DevLogList
+                      key={refreshKey}
+                      userId={selectedUserId || user?.id}
+                      username={
+                        selectedUsername || user?.name || user?.username
+                      }
+                      user={user}
+                      onEdit={handleEdit}
+                      onRefresh={() => setRefreshKey((prev) => prev + 1)}
+                    />
                   </>
                 ) : (
-                  <button
-                    onClick={() => setShowLogin(true)}
-                    className="btn-new-entry"
-                  >
-                    Login
-                  </button>
+                  <UserList onUserSelect={handleUserSelect} />
                 )}
-              </div>
+              </>
+            ) : currentPage === "profile" && user ? (
+              <Profile user={user} onProfileUpdate={handleProfileUpdate} />
+            ) : currentPage === "admin" &&
+              user &&
+              user.role === "super_admin" ? (
+              <AdminUserManagement />
+            ) : currentPage === "engagement" &&
+              user &&
+              (user.role === "admin" || user.role === "super_admin") ? (
+              <Engagement />
+            ) : (
+              <About
+                user={user}
+                onNavigateToProfile={() => setCurrentPage("profile")}
+              />
             )}
           </div>
-          <nav className="main-nav">
-            <ul>
+        </div>
+
+        {/* Sidebar */}
+        <div className="drawer-side is-drawer-close:overflow-visible z-10">
+          <label
+            htmlFor="my-drawer"
+            aria-label="close sidebar"
+            className="drawer-overlay"
+          ></label>
+          <div className="flex min-h-full flex-col items-start bg-base-200 is-drawer-close:w-14 is-drawer-open:w-64">
+            <ul className="menu w-full grow">
+              {/* Home */}
               <li>
                 <a
-                  href="#home"
-                  className={currentPage === "home" ? "active" : ""}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    setCurrentPage("home");
-                  }}
+                  onClick={() => setCurrentPage("home")}
+                  className={`is-drawer-close:tooltip is-drawer-close:tooltip-right ${
+                    currentPage === "home" ? "active" : ""
+                  }`}
+                  data-tip="Home"
                 >
-                  Home
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    strokeLinejoin="round"
+                    strokeLinecap="round"
+                    strokeWidth="2"
+                    fill="none"
+                    stroke="currentColor"
+                    className="size-5"
+                  >
+                    <path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"></path>
+                    <path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                  </svg>
+                  <span className="is-drawer-close:hidden">Home</span>
                 </a>
               </li>
+
+              {/* Developer Logs */}
               <li>
                 <a
-                  href="#logs"
-                  className={currentPage === "logs" ? "active" : ""}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    setCurrentPage("logs");
-                  }}
+                  onClick={() => setCurrentPage("logs")}
+                  className={`is-drawer-close:tooltip is-drawer-close:tooltip-right ${
+                    currentPage === "logs" ? "active" : ""
+                  }`}
+                  data-tip="Developer Logs"
                 >
-                  Developer Logs
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    strokeLinejoin="round"
+                    strokeLinecap="round"
+                    strokeWidth="2"
+                    fill="none"
+                    stroke="currentColor"
+                    className="size-5"
+                  >
+                    <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"></path>
+                  </svg>
+                  <span className="is-drawer-close:hidden">Developer Logs</span>
                 </a>
               </li>
+
+              {/* Profile */}
               {user && (
                 <li>
                   <a
-                    href="#profile"
-                    className={currentPage === "profile" ? "active" : ""}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setCurrentPage("profile");
-                    }}
+                    onClick={() => setCurrentPage("profile")}
+                    className={`is-drawer-close:tooltip is-drawer-close:tooltip-right ${
+                      currentPage === "profile" ? "active" : ""
+                    }`}
+                    data-tip="Profile"
                   >
-                    Profile
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      strokeLinejoin="round"
+                      strokeLinecap="round"
+                      strokeWidth="2"
+                      fill="none"
+                      stroke="currentColor"
+                      className="size-5"
+                    >
+                      <path d="M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0"></path>
+                      <path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2"></path>
+                    </svg>
+                    <span className="is-drawer-close:hidden">Profile</span>
                   </a>
                 </li>
               )}
+
+              {/* Admin */}
               {user && user.role === "super_admin" && (
                 <li>
                   <a
-                    href="#admin"
-                    className={currentPage === "admin" ? "active" : ""}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setCurrentPage("admin");
-                    }}
+                    onClick={() => setCurrentPage("admin")}
+                    className={`is-drawer-close:tooltip is-drawer-close:tooltip-right ${
+                      currentPage === "admin" ? "active" : ""
+                    }`}
+                    data-tip="Admin"
                   >
-                    Admin
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      strokeLinejoin="round"
+                      strokeLinecap="round"
+                      strokeWidth="2"
+                      fill="none"
+                      stroke="currentColor"
+                      className="size-5"
+                    >
+                      <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                      <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                    <span className="is-drawer-close:hidden">Admin</span>
                   </a>
                 </li>
               )}
+
+              {/* Engagement */}
+              {user &&
+                (user.role === "admin" || user.role === "super_admin") && (
+                  <li>
+                    <a
+                      onClick={() => setCurrentPage("engagement")}
+                      className={`is-drawer-close:tooltip is-drawer-close:tooltip-right ${
+                        currentPage === "engagement" ? "active" : ""
+                      }`}
+                      data-tip="Engagement"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        strokeLinejoin="round"
+                        strokeLinecap="round"
+                        strokeWidth="2"
+                        fill="none"
+                        stroke="currentColor"
+                        className="size-5"
+                      >
+                        <path d="M3 3v18h18"></path>
+                        <path d="M20 18v3"></path>
+                        <path d="M16 16v5"></path>
+                        <path d="M12 13v8"></path>
+                        <path d="M8 16v5"></path>
+                        <path d="M3 11c6 0 5-10 10-10s4 10 10 10"></path>
+                      </svg>
+                      <span className="is-drawer-close:hidden">Engagement</span>
+                    </a>
+                  </li>
+                )}
+
+              {/* Divider */}
+              <li className="mt-auto"></li>
+
+              {/* Resume (External link) */}
               <li>
                 <a
                   href="https://www.jvcswebdesigns.xyz/about.html"
-                  rel="noopener noreferrer"
                   target="_blank"
+                  rel="noopener noreferrer"
+                  className="is-drawer-close:tooltip is-drawer-close:tooltip-right"
+                  data-tip="Resume"
                 >
-                  Resume →
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    strokeLinejoin="round"
+                    strokeLinecap="round"
+                    strokeWidth="2"
+                    fill="none"
+                    stroke="currentColor"
+                    className="size-5"
+                  >
+                    <path d="M11 7H6a2 2 0 00-2 2v9a2 2 0 002 2h9a2 2 0 002-2v-5"></path>
+                    <path d="M10 14L20 4"></path>
+                    <path d="M15 4h5v5"></path>
+                  </svg>
+                  <span className="is-drawer-close:hidden">Resume →</span>
                 </a>
               </li>
             </ul>
-          </nav>
-        </div>
-      </header>
-
-      {currentPage === "logs" ? (
-        <>
-          <div className="page-container-full">
-            <main className="main-content-full">
-              {user || selectedUserId ? (
-                <>
-                  {selectedUserId && !user && (
-                    <button
-                      onClick={handleBackToUserList}
-                      className="btn-back"
-                      style={{
-                        marginBottom: "1rem",
-                        background: "#6c757d",
-                        color: "white",
-                        border: "none",
-                        padding: "0.5rem 1rem",
-                        borderRadius: "6px",
-                        cursor: "pointer",
-                      }}
-                    >
-                      ← Back to Users
-                    </button>
-                  )}
-                  <DevLogList
-                    key={refreshKey}
-                    userId={selectedUserId || user?.id}
-                    username={selectedUsername || user?.name || user?.username}
-                    user={user}
-                    onEdit={handleEdit}
-                    onRefresh={() => setRefreshKey((prev) => prev + 1)}
-                  />
-                </>
-              ) : (
-                <UserList onUserSelect={handleUserSelect} />
-              )}
-            </main>
           </div>
+        </div>
+      </div>
 
-          {/* EntryLogger Modal/Overlay */}
-          {showLogger && (
-            <div
-              style={{
-                position: "fixed",
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                backgroundColor: "rgba(0, 0, 0, 0.5)",
-                zIndex: 1000,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: "1rem",
-              }}
-            >
-              <div
-                style={{
-                  position: "relative",
-                  maxWidth: "800px",
-                  width: "100%",
-                  maxHeight: "90vh",
-                  overflow: "auto",
-                }}
+      {/* EntryLogger Modal */}
+      {showLogger && (
+        <dialog className="modal modal-open">
+          <div className="modal-box max-w-4xl">
+            <form method="dialog">
+              <button
+                onClick={() => setShowLogger(false)}
+                className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2"
               >
-                <button
-                  onClick={() => setShowLogger(false)}
-                  style={{
-                    position: "absolute",
-                    top: "10px",
-                    right: "10px",
-                    background: "#dc3545",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "50%",
-                    width: "40px",
-                    height: "40px",
-                    cursor: "pointer",
-                    zIndex: 1001,
-                    fontSize: "20px",
-                  }}
-                >
-                  ×
-                </button>
-                <EntryLogger
-                  onSubmit={() => {
-                    handleEntryCreated();
-                  }}
-                />
-              </div>
-            </div>
-          )}
+                ✕
+              </button>
+            </form>
+            <h3 className="font-bold text-lg mb-4">New Entry</h3>
+            <EntryLogger
+              onSubmit={() => {
+                handleEntryCreated();
+              }}
+            />
+          </div>
+          <form method="dialog" className="modal-backdrop">
+            <button onClick={() => setShowLogger(false)}>close</button>
+          </form>
+        </dialog>
+      )}
 
-          {/* EditLogger Modal */}
-          {editingEntry && (
-            <div
-              style={{
-                position: "fixed",
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                backgroundColor: "rgba(0, 0, 0, 0.5)",
-                zIndex: 1000,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: "1rem",
-              }}
-            >
-              <div
-                style={{
-                  position: "relative",
-                  maxWidth: "800px",
-                  width: "100%",
-                  maxHeight: "90vh",
-                  overflow: "auto",
-                }}
+      {/* EditLogger Modal */}
+      {editingEntry && (
+        <dialog className="modal modal-open">
+          <div className="modal-box max-w-4xl">
+            <form method="dialog">
+              <button
+                onClick={() => setEditingEntry(null)}
+                className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2"
               >
-                <button
-                  onClick={() => setEditingEntry(null)}
-                  style={{
-                    position: "absolute",
-                    top: "10px",
-                    right: "10px",
-                    background: "#dc3545",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "50%",
-                    width: "40px",
-                    height: "40px",
-                    cursor: "pointer",
-                    zIndex: 1001,
-                    fontSize: "20px",
-                  }}
-                >
-                  ×
-                </button>
-                <EditLogger
-                  entry={editingEntry}
-                  onSuccess={handleEditSuccess}
-                  onCancel={() => setEditingEntry(null)}
-                />
-              </div>
-            </div>
-          )}
-        </>
-      ) : currentPage === "profile" && user ? (
-        <Profile user={user} onProfileUpdate={handleProfileUpdate} />
-      ) : currentPage === "admin" && user && user.role === "super_admin" ? (
-        <AdminUserManagement />
-      ) : (
-        <About
-          user={user}
-          onNavigateToProfile={() => setCurrentPage("profile")}
-        />
+                ✕
+              </button>
+            </form>
+            <h3 className="font-bold text-lg mb-4">Edit Entry</h3>
+            <EditLogger
+              entry={editingEntry}
+              onSuccess={handleEditSuccess}
+              onCancel={() => setEditingEntry(null)}
+            />
+          </div>
+          <form method="dialog" className="modal-backdrop">
+            <button onClick={() => setEditingEntry(null)}>close</button>
+          </form>
+        </dialog>
       )}
 
       {/* Login Modal */}

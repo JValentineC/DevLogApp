@@ -2,7 +2,7 @@
 
 .profile-page {
   min-height: 100vh;
-  background: #f8f9fa;
+  background: #dee2e6;
   padding: 2rem;
 }
 
@@ -20,7 +20,7 @@
   font-size: 2rem;
   margin-bottom: 2rem;
   padding-bottom: 1rem;
-  border-bottom: 2px solid #e9ecef;
+  border-bottom: 2px solid #adb5bd;
 }
 
 .profile-form {
@@ -30,7 +30,7 @@
 }
 
 .profile-section {
-  border-bottom: 1px solid #e9ecef;
+  border-bottom: 1px solid #adb5bd;
   padding-bottom: 2rem;
 }
 
@@ -46,7 +46,7 @@
 }
 
 .section-description {
-  color: #6c757d;
+  color: #495057;
   font-size: 0.9rem;
   margin-bottom: 1.5rem;
 }
@@ -89,7 +89,7 @@
 .form-group textarea {
   width: 100%;
   padding: 0.875rem;
-  border: 2px solid #dee2e6;
+  border: 2px solid #adb5bd;
   border-radius: 8px;
   font-size: 1rem;
   transition: all 0.2s;
@@ -111,7 +111,7 @@
 .form-group small {
   display: block;
   margin-top: 0.5rem;
-  color: #6c757d;
+  color: #495057;
   font-size: 0.875rem;
 }
 

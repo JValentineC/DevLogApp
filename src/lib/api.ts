@@ -34,6 +34,36 @@ export interface User {
   updatedAt?: string;
 }
 
+export interface Person {
+  id: number;
+  firstName: string;
+  middleName?: string;
+  lastName: string;
+  fullName: string;
+  orgEmail?: string;
+  personalEmail?: string;
+  phone?: string;
+  linkedInUrl?: string;
+  portfolioUrl?: string;
+  isICaaMember: boolean;
+  icaaTier?: string;
+  accountStatus: string;
+  createdAt: string;
+  updatedAt: string;
+  cycles?: string;
+  cycleIds?: string;
+  isCaptain: boolean;
+}
+
+export interface Cycle {
+  id: number;
+  code: string;
+  city: string;
+  notes?: string;
+  memberCount: number;
+  captainCount: number;
+}
+
 export interface LoginResponse {
   success: boolean;
   user: User;
@@ -45,6 +75,8 @@ export interface ApiResponse<T> {
   data?: T;
   entries?: T;
   users?: T;
+  people?: T;
+  cycles?: T;
   error?: string;
   message?: string;
   count?: number;
@@ -341,6 +373,79 @@ export const userApi = {
         response
       );
     }
+  },
+};
+
+// Alumni/Person engagement API (admin+ only)
+export const peopleApi = {
+  // Get all people with filters
+  async getAll(filters?: {
+    cycleId?: number;
+    isCaptain?: boolean;
+    search?: string;
+    status?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ people: Person[]; count: number }> {
+    const params = new URLSearchParams();
+
+    if (filters?.cycleId) {
+      params.append("cycleId", filters.cycleId.toString());
+    }
+    if (filters?.isCaptain !== undefined) {
+      params.append("isCaptain", filters.isCaptain.toString());
+    }
+    if (filters?.search) {
+      params.append("search", filters.search);
+    }
+    if (filters?.status) {
+      params.append("status", filters.status);
+    }
+    if (filters?.limit) {
+      params.append("limit", filters.limit.toString());
+    }
+    if (filters?.offset) {
+      params.append("offset", filters.offset.toString());
+    }
+
+    const endpoint = `/people${
+      params.toString() ? `?${params.toString()}` : ""
+    }`;
+    const response = await apiFetch<any>(endpoint);
+
+    if (!response.success || !response.people) {
+      throw new ApiError(
+        response.error || "Failed to fetch people",
+        500,
+        response
+      );
+    }
+
+    return {
+      people: response.people,
+      count: response.count || 0,
+    };
+  },
+};
+
+// Cycle API (admin+ only)
+export const cycleApi = {
+  // Get all cycles
+  async getAll(): Promise<{ cycles: Cycle[]; count: number }> {
+    const response = await apiFetch<any>("/cycles");
+
+    if (!response.success || !response.cycles) {
+      throw new ApiError(
+        response.error || "Failed to fetch cycles",
+        500,
+        response
+      );
+    }
+
+    return {
+      cycles: response.cycles,
+      count: response.count || 0,
+    };
   },
 };
 

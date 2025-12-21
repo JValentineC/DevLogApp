@@ -48,7 +48,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 2rem 2rem 1rem;
-  border-bottom: 1px solid #e9ecef;
+  border-bottom: 1px solid #adb5bd;
 }
 
 .login-header h2 {
@@ -61,7 +61,7 @@
   background: none;
   border: none;
   font-size: 2rem;
-  color: #6c757d;
+  color: #495057;
   cursor: pointer;
   padding: 0;
   width: 32px;
@@ -74,7 +74,7 @@
 }
 
 .close-btn:hover {
-  background: #f8f9fa;
+  background: #dee2e6;
   color: #343a40;
 }
 
@@ -89,6 +89,35 @@
   border-radius: 8px;
   margin-bottom: 1.5rem;
   border: 1px solid #f5c6cb;
+}
+
+.login-error.rate-limit-error {
+  background: #fff3cd;
+  color: #856404;
+  border: 2px solid #ffc107;
+  padding: 1.25rem;
+  text-align: center;
+  animation: shake 0.5s ease;
+}
+
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  10%,
+  30%,
+  50%,
+  70%,
+  90% {
+    transform: translateX(-5px);
+  }
+  20%,
+  40%,
+  60%,
+  80% {
+    transform: translateX(5px);
+  }
 }
 
 .form-group {
@@ -106,7 +135,7 @@
 .form-group input {
   width: 100%;
   padding: 0.875rem;
-  border: 2px solid #dee2e6;
+  border: 2px solid #adb5bd;
   border-radius: 8px;
   font-size: 1rem;
   transition: all 0.2s;
