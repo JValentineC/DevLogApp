@@ -1,0 +1,47 @@
+.twofa-verify {
+  padding: 1.5rem;
+  max-width: 450px;
+  margin: 0 auto;
+}
+
+.verify-header {
+  margin-bottom: 2rem;
+}
+
+.user-badge {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: var(--fallback-b2, oklch(var(--b2) / 1));
+  border-radius: 0.5rem;
+}
+
+.verify-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.verify-form input {
+  font-family: "Courier New", monospace;
+  font-size: 1.5rem;
+}
+
+.form-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .twofa-verify {
+    padding: 1rem;
+  }
+
+  .verify-form input {
+    font-size: 1.25rem;
+  }
+}

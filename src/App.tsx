@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import VSCodeMenuBar from "./components/VSCodeMenuBar";
 import EntryLogger from "./components/EntryLogger";
 import EditLogger from "./components/EditLogger";
 import DevLogList from "./components/DevLogList";
@@ -93,84 +94,18 @@ function App() {
 
   return (
     <>
+      {/* VSCode-style menu bar at the top */}
+      <VSCodeMenuBar
+        user={user}
+        onNavigate={(page) => setCurrentPage(page as any)}
+        onLogout={handleLogout}
+        onLogin={() => setShowLogin(true)}
+      />
       <div className="drawer lg:drawer-open">
         <input id="my-drawer" type="checkbox" className="drawer-toggle" />
 
-        {/* Main content area */}
+        {/* Main content area (no old navbar) */}
         <div className="drawer-content flex flex-col">
-          {/* Navbar */}
-          <nav className="navbar w-full bg-base-300">
-            <div className="flex-none">
-              <label
-                htmlFor="my-drawer"
-                aria-label="open sidebar"
-                className="btn btn-square btn-ghost lg:hidden"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  strokeLinejoin="round"
-                  strokeLinecap="round"
-                  strokeWidth="2"
-                  fill="none"
-                  stroke="currentColor"
-                  className="size-5"
-                >
-                  <path d="M4 6h16M4 12h16M4 18h16"></path>
-                </svg>
-              </label>
-            </div>
-            <div className="flex-1 px-4 text-xl font-bold">JVC's Dev Log</div>
-            <div className="flex-none gap-2">
-              {currentPage === "logs" && user && (
-                <>
-                  <button
-                    onClick={() => setShowLogger(!showLogger)}
-                    className="btn btn-primary btn-sm"
-                  >
-                    {showLogger ? "✕ Close" : "+ New Entry"}
-                  </button>
-                </>
-              )}
-              {user ? (
-                <div className="dropdown dropdown-end">
-                  <div
-                    tabIndex={0}
-                    role="button"
-                    className="btn btn-ghost btn-circle avatar placeholder"
-                  >
-                    <div className="bg-neutral text-neutral-content w-10 rounded-full">
-                      <span className="text-xl">
-                        {user.username.charAt(0).toUpperCase()}
-                      </span>
-                    </div>
-                  </div>
-                  <ul
-                    tabIndex={0}
-                    className="menu menu-sm dropdown-content bg-base-100 rounded-box z-[1] mt-3 w-52 p-2 shadow"
-                  >
-                    <li className="menu-title">
-                      <span>Hi, {user.username}</span>
-                    </li>
-                    <li>
-                      <a onClick={() => setCurrentPage("profile")}>Profile</a>
-                    </li>
-                    <li>
-                      <a onClick={handleLogout}>Logout</a>
-                    </li>
-                  </ul>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setShowLogin(true)}
-                  className="btn btn-primary btn-sm"
-                >
-                  Login
-                </button>
-              )}
-            </div>
-          </nav>
-
           {/* Page content */}
           <div className="flex-1 p-4">
             {currentPage === "logs" ? (

@@ -1,0 +1,186 @@
+/* VSCode Menu Bar Styles */
+
+.vscode-menubar {
+  display: flex;
+  align-items: center;
+  background: #1e1e1e;
+  height: 35px;
+  color: #cccccc;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  border-bottom: 1px solid #2d2d2d;
+  position: relative;
+  z-index: 1000;
+  user-select: none;
+}
+
+.vscode-menubar__logo {
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  height: 100%;
+  border-right: 1px solid #2d2d2d;
+}
+
+.vscode-menubar__logo-img {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
+
+.vscode-menubar__items {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  flex: 1;
+}
+
+.vscode-menubar__item {
+  position: relative;
+  height: 100%;
+}
+
+.vscode-menubar__button {
+  background: none;
+  border: none;
+  color: #cccccc;
+  padding: 0 12px;
+  height: 100%;
+  cursor: pointer;
+  font-size: 13px;
+  font-family: inherit;
+  transition: background-color 0.1s, color 0.1s;
+  display: flex;
+  align-items: center;
+}
+
+.vscode-menubar__button:hover {
+  background: #2d2d2d;
+  color: #ffffff;
+}
+
+.vscode-menubar__button.active {
+  background: #094771;
+  color: #ffffff;
+}
+
+.vscode-menubar__dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: #252526;
+  border: 1px solid #454545;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  min-width: 220px;
+  z-index: 1001;
+  animation: slideDown 0.1s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.vscode-menubar__dropdown-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  color: #cccccc;
+  cursor: pointer;
+  transition: background-color 0.1s;
+}
+
+.vscode-menubar__dropdown-item:hover {
+  background: #094771;
+  color: #ffffff;
+}
+
+.vscode-menubar__dropdown-item:active {
+  background: #007acc;
+}
+
+.vscode-menubar__shortcut {
+  font-size: 11px;
+  color: #858585;
+  margin-left: 32px;
+}
+
+.vscode-menubar__dropdown-divider {
+  height: 1px;
+  background: #454545;
+  margin: 4px 0;
+}
+
+.vscode-menubar__right {
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  height: 100%;
+  margin-left: auto;
+}
+
+.vscode-menubar__user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vscode-menubar__user-avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #007acc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.vscode-menubar__user-name {
+  font-size: 12px;
+  color: #cccccc;
+}
+
+.vscode-menubar__login-btn {
+  background: #0e639c;
+  border: 1px solid #0e639c;
+  color: #ffffff;
+  padding: 4px 12px;
+  border-radius: 2px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.vscode-menubar__login-btn:hover {
+  background: #1177bb;
+  border-color: #1177bb;
+}
+
+.vscode-menubar__login-btn:active {
+  background: #094771;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .vscode-menubar {
+    font-size: 12px;
+  }
+
+  .vscode-menubar__button {
+    padding: 0 8px;
+  }
+
+  .vscode-menubar__user-name {
+    display: none;
+  }
+}
