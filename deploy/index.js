@@ -7,6 +7,8 @@ import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import speakeasy from "speakeasy";
 import jwt from "jsonwebtoken";
+import multer from "multer";
+import { v2 as cloudinary } from "cloudinary";
 import {
   authenticateToken,
   authorizeOwner,
@@ -22,6 +24,29 @@ try {
 } catch (e) {
   console.error("Could not load /home/protected/.env:", e.message);
 }
+
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+// Configure multer for memory storage (we'll upload to Cloudinary from memory)
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    // Accept images only
+    if (!file.mimetype.startsWith("image/")) {
+      cb(new Error("Only image files are allowed!"), false);
+      return;
+    }
+    cb(null, true);
+  },
+});
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -725,6 +750,38 @@ app.post("/api/auth/register", authLimiter, async (req, res) => {
   }
 });
 
+// POST /api/auth/setup-2fa - Setup 2FA for existing user
+app.post("/api/auth/setup-2fa", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+
+    // Generate 2FA secret
+    const secret = speakeasy.generateSecret({
+      name: `DevLogs (${req.user.email})`,
+      length: 20,
+    });
+
+    // Generate QR code as data URL
+    const QRCode = await import("qrcode");
+    const qrCodeDataUrl = await QRCode.toDataURL(secret.otpauth_url);
+
+    // Store the secret temporarily (user needs to verify before enabling)
+    // For now, just return it - the verify endpoint will save it
+    res.json({
+      success: true,
+      qrCode: qrCodeDataUrl,
+      secret: secret.base32,
+    });
+  } catch (error) {
+    console.error("Error setting up 2FA:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to setup 2FA",
+      message: error.message,
+    });
+  }
+});
+
 // GET /api/users - Get all users with published dev logs
 app.get("/api/users", async (req, res) => {
   try {
@@ -946,6 +1003,67 @@ app.put(
       res.status(500).json({
         success: false,
         error: "Failed to update profile",
+        message: error.message,
+      });
+    }
+  }
+);
+
+// POST /api/users/:id/profile-photo - Upload profile photo to Cloudinary (Protected)
+app.post(
+  "/api/users/:id/profile-photo",
+  authenticateToken,
+  authorizeOwner,
+  upload.single("photo"),
+  async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+
+      if (!req.file) {
+        return res.status(400).json({
+          success: false,
+          error: "No photo file provided",
+        });
+      }
+
+      // Upload to Cloudinary with smart cropping for consistent circular avatars
+      const uploadResult = await new Promise((resolve, reject) => {
+        const uploadStream = cloudinary.uploader.upload_stream(
+          {
+            folder: "devlogs/profiles",
+            public_id: `user_${userId}_${Date.now()}`,
+            transformation: [
+              // Smart crop to square, focusing on face if detected
+              { width: 500, height: 500, crop: "fill", gravity: "face" },
+              { quality: "auto" },
+              { fetch_format: "auto" },
+            ],
+          },
+          (error, result) => {
+            if (error) reject(error);
+            else resolve(result);
+          }
+        );
+
+        uploadStream.end(req.file.buffer);
+      });
+
+      // Update user's profilePhoto with Cloudinary URL
+      await pool.execute("UPDATE User SET profilePhoto = ? WHERE id = ?", [
+        uploadResult.secure_url,
+        userId,
+      ]);
+
+      res.json({
+        success: true,
+        photoUrl: uploadResult.secure_url,
+        message: "Profile photo uploaded successfully",
+      });
+    } catch (error) {
+      console.error("Error uploading profile photo:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to upload profile photo",
         message: error.message,
       });
     }
@@ -1312,9 +1430,36 @@ app.get(
   requireRole("super_admin"),
   async (req, res) => {
     try {
-      const [users] = await pool.execute(
-        "SELECT id, username, email, firstName, lastName, role, createdAt, updatedAt FROM User ORDER BY createdAt DESC"
-      );
+      const { cycleId } = req.query;
+
+      let query = `
+        SELECT 
+          u.id, 
+          u.username, 
+          u.email, 
+          u.firstName, 
+          u.lastName, 
+          u.role, 
+          u.createdAt, 
+          u.updatedAt,
+          GROUP_CONCAT(DISTINCT c.code ORDER BY c.code SEPARATOR ', ') as cycles,
+          GROUP_CONCAT(DISTINCT c.id ORDER BY c.id) as cycleIds
+        FROM User u
+        LEFT JOIN Person p ON u.id = p.userId
+        LEFT JOIN CycleMembership cm ON p.id = cm.personId
+        LEFT JOIN Cycle c ON cm.cycleId = c.id
+      `;
+
+      const params = [];
+
+      if (cycleId) {
+        query += ` WHERE c.id = ?`;
+        params.push(cycleId);
+      }
+
+      query += ` GROUP BY u.id ORDER BY u.createdAt DESC`;
+
+      const [users] = await pool.execute(query, params);
 
       res.json({
         success: true,
@@ -1709,8 +1854,9 @@ app.post(
       const { userId } = req.params;
 
       // Generate a random temporary password (8 characters)
-      const tempPassword = Math.random().toString(36).slice(-8).toUpperCase() + 
-                          Math.random().toString(36).slice(-8).toLowerCase();
+      const tempPassword =
+        Math.random().toString(36).slice(-8).toUpperCase() +
+        Math.random().toString(36).slice(-8).toLowerCase();
 
       // Hash the temporary password
       const hashedPassword = await bcrypt.hash(tempPassword, 10);

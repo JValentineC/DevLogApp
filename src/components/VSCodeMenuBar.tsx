@@ -13,7 +13,9 @@ interface User {
 
 interface VSCodeMenuBarProps {
   user: User | null;
-  onNavigate: (page: "home" | "feed" | "my-logs" | "profile") => void;
+  onNavigate: (
+    page: "home" | "logs" | "profile" | "admin" | "engagement"
+  ) => void;
   onLogout: () => void;
   onLogin: () => void;
 }
@@ -134,9 +136,7 @@ const VSCodeMenuBar = ({
               <div className="vscode-menubar__dropdown">
                 <div
                   className="vscode-menubar__dropdown-item"
-                  onClick={() =>
-                    handleMenuItemClick(() => onNavigate("my-logs"))
-                  }
+                  onClick={() => handleMenuItemClick(() => onNavigate("logs"))}
                 >
                   <span>View My Logs</span>
                   <span className="vscode-menubar__shortcut">Ctrl+L</span>
@@ -160,7 +160,7 @@ const VSCodeMenuBar = ({
             <div className="vscode-menubar__dropdown">
               <div
                 className="vscode-menubar__dropdown-item"
-                onClick={() => handleMenuItemClick(() => onNavigate("feed"))}
+                onClick={() => handleMenuItemClick(() => onNavigate("logs"))}
               >
                 <span>Feed (All Posts)</span>
                 <span className="vscode-menubar__shortcut">Ctrl+F</span>

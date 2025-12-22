@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { userApi, type User, ApiError } from "../lib/api";
+import { userApi, cycleApi, type User, type Cycle, ApiError } from "../lib/api";
 import "./AdminUserManagement.css";
 
 const AdminUserManagement: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
+  const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
+  const [cycles, setCycles] = useState<Cycle[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -24,11 +26,29 @@ const AdminUserManagement: React.FC = () => {
     tempPassword?: string;
   } | null>(null);
 
+  // Filters
+  const [searchQuery, setSearchQuery] = useState("");
+  const [roleFilter, setRoleFilter] = useState<string>("");
+  const [cycleFilter, setCycleFilter] = useState<string>("");
+  const [collapsedCycles, setCollapsedCycles] = useState<Set<string>>(
+    new Set()
+  );
+
+  const fetchCycles = async () => {
+    try {
+      const { cycles: fetchedCycles } = await cycleApi.getAll();
+      setCycles(fetchedCycles);
+    } catch (err) {
+      console.error("Error fetching cycles:", err);
+    }
+  };
+
   const fetchUsers = async () => {
     try {
       setLoading(true);
       const { users: fetchedUsers } = await userApi.getAll();
       setUsers(fetchedUsers);
+      setFilteredUsers(fetchedUsers);
       setError("");
     } catch (err) {
       console.error("Error fetching users:", err);
@@ -41,6 +61,141 @@ const AdminUserManagement: React.FC = () => {
       setLoading(false);
     }
   };
+
+  // Fetch cycles on mount
+  useEffect(() => {
+    fetchCycles();
+  }, []);
+
+  // Apply filters
+  useEffect(() => {
+    let filtered = [...users];
+
+    // Search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (user) =>
+          user.username?.toLowerCase().includes(query) ||
+          user.email?.toLowerCase().includes(query) ||
+          user.firstName?.toLowerCase().includes(query) ||
+          user.lastName?.toLowerCase().includes(query)
+      );
+    }
+
+    // Role filter
+    if (roleFilter) {
+      filtered = filtered.filter((user) => user.role === roleFilter);
+    }
+
+    // Cycle filter
+    if (cycleFilter) {
+      filtered = filtered.filter((user) =>
+        user.cycleIds?.split(",").includes(cycleFilter)
+      );
+    }
+
+    setFilteredUsers(filtered);
+  }, [users, searchQuery, roleFilter, cycleFilter]);
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+  };
+
+  const handleRoleFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setRoleFilter(e.target.value);
+  };
+
+  const handleCycleFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setCycleFilter(e.target.value);
+  };
+
+  const toggleCycleCollapse = (cycleCode: string) => {
+    setCollapsedCycles((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(cycleCode)) {
+        newSet.delete(cycleCode);
+      } else {
+        newSet.add(cycleCode);
+      }
+      return newSet;
+    });
+  };
+
+  const clearFilters = () => {
+    setSearchQuery("");
+    setRoleFilter("");
+    setCycleFilter("");
+  };
+
+  // Group users by cycle when cycle filter is active
+  const groupedUsers = () => {
+    if (!cycleFilter) {
+      return { ungrouped: filteredUsers };
+    }
+
+    const groups: { [key: string]: User[] } = {};
+
+    filteredUsers.forEach((user) => {
+      const userCycles = user.cycles?.split(", ") || ["No Cycle"];
+      userCycles.forEach((cycle) => {
+        if (!groups[cycle]) {
+          groups[cycle] = [];
+        }
+        groups[cycle].push(user);
+      });
+    });
+
+    return groups;
+  };
+
+  const renderUserRow = (user: User) => (
+    <tr key={user.id}>
+      <td>{user.id}</td>
+      <td>{user.username}</td>
+      <td>
+        {user.firstName} {user.lastName}
+      </td>
+      <td>{user.email}</td>
+      <td>{user.cycles || "-"}</td>
+      <td>
+        <select
+          className={`role-badge ${getRoleBadgeClass(user.role)}`}
+          value={user.role}
+          onChange={(e) =>
+            handleRoleChange(
+              user.id,
+              e.target.value as "user" | "admin" | "super_admin"
+            )
+          }
+        >
+          <option value="user">User</option>
+          <option value="admin">Admin</option>
+          <option value="super_admin">Super Admin</option>
+        </select>
+      </td>
+      <td>
+        {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : "N/A"}
+      </td>
+      <td>
+        {currentUser?.role === "super_admin" && (
+          <button
+            className="btn btn--warning btn--small"
+            onClick={() => handleResetPassword(user.id, user.username)}
+            style={{ marginRight: "0.5rem" }}
+          >
+            Reset Password
+          </button>
+        )}
+        <button
+          className="btn btn--danger btn--small"
+          onClick={() => handleDeleteUser(user.id, user.username)}
+        >
+          Delete
+        </button>
+      </td>
+    </tr>
+  );
 
   useEffect(() => {
     // Get current user from localStorage
@@ -134,9 +289,7 @@ const AdminUserManagement: React.FC = () => {
       fetchUsers();
     } catch (err) {
       console.error("Error resetting password:", err);
-      alert(
-        err instanceof ApiError ? err.message : "Failed to reset password"
-      );
+      alert(err instanceof ApiError ? err.message : "Failed to reset password");
     }
   };
 
@@ -163,13 +316,6 @@ const AdminUserManagement: React.FC = () => {
     <div className="admin-user-management">
       <div className="admin-user-management__header">
         <h2>User Management</h2>
-        <button
-          className="btn btn--create-user"
-          onClick={() => setShowCreateForm(!showCreateForm)}
-          title={showCreateForm ? "Cancel" : "Create New User"}
-        >
-          {showCreateForm ? "✕" : "+"}
-        </button>
       </div>
 
       {error && <div className="error-message">{error}</div>}
@@ -288,6 +434,64 @@ const AdminUserManagement: React.FC = () => {
         </div>
       )}
 
+      <div className="engagement__filters">
+        <div className="engagement__filter-group">
+          <label htmlFor="search">Search</label>
+          <input
+            id="search"
+            type="text"
+            placeholder="Search by username, name, or email..."
+            value={searchQuery}
+            onChange={handleSearchChange}
+            className="engagement__search"
+          />
+        </div>
+
+        <div className="engagement__filter-group">
+          <label htmlFor="cycle">Cycle</label>
+          <select
+            id="cycle"
+            value={cycleFilter}
+            onChange={handleCycleFilterChange}
+            className="engagement__select"
+          >
+            <option value="">All Cycles</option>
+            {cycles.map((cycle) => (
+              <option key={cycle.id} value={cycle.id}>
+                {cycle.code} ({cycle.memberCount} members)
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="engagement__filter-group">
+          <label htmlFor="role-filter">Role</label>
+          <select
+            id="role-filter"
+            value={roleFilter}
+            onChange={handleRoleFilterChange}
+            className="engagement__select"
+          >
+            <option value="">All Roles</option>
+            <option value="user">User</option>
+            <option value="admin">Admin</option>
+            <option value="super_admin">Super Admin</option>
+          </select>
+        </div>
+
+        <div className="engagement__filter-group">
+          <button onClick={clearFilters} className="engagement__clear-btn">
+            Clear Filters
+          </button>
+        </div>
+
+        <div className="engagement__filter-group">
+          <div className="engagement__results-count">
+            Total Users: {filteredUsers.length}
+          </div>
+        </div>
+      </div>
+
       <div className="users-table">
         <table>
           <thead>
@@ -296,102 +500,116 @@ const AdminUserManagement: React.FC = () => {
               <th>Username</th>
               <th>Name</th>
               <th>Email</th>
+              <th>Cycles</th>
               <th>Role</th>
               <th>Created</th>
-              <th>Actions</th>
+              <th>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <span>Actions</span>
+                  <button
+                    className="btn btn--create-user btn--create-user-small"
+                    onClick={() => setShowCreateForm(!showCreateForm)}
+                    title={showCreateForm ? "Cancel" : "Create New User"}
+                  >
+                    {showCreateForm ? "✕" : "+"}
+                  </button>
+                </div>
+              </th>
             </tr>
           </thead>
           <tbody>
-            {users.map((user) => (
-              <tr key={user.id}>
-                <td>{user.id}</td>
-                <td>{user.username}</td>
-                <td>
-                  {user.firstName} {user.lastName}
-                </td>
-                <td>{user.email}</td>
-                <td>
-                  <select
-                    className={`role-badge ${getRoleBadgeClass(user.role)}`}
-                    value={user.role}
-                    onChange={(e) =>
-                      handleRoleChange(
-                        user.id,
-                        e.target.value as "user" | "admin" | "super_admin"
-                      )
-                    }
-                  >
-                    <option value="user">User</option>
-                    <option value="admin">Admin</option>
-                    <option value="super_admin">Super Admin</option>
-                  </select>
-                </td>
-                <td>
-                  {user.createdAt
-                    ? new Date(user.createdAt).toLocaleDateString()
-                    : "N/A"}
-                </td>
-                <td>
-                  {currentUser?.role === "super_admin" && (
-                    <button
-                      className="btn btn--warning btn--small"
-                      onClick={() =>
-                        handleResetPassword(user.id, user.username)
-                      }
-                      style={{ marginRight: "0.5rem" }}
-                    >
-                      Reset Password
-                    </button>
-                  )}
-                  <button
-                    className="btn btn--danger btn--small"
-                    onClick={() => handleDeleteUser(user.id, user.username)}
-                  >
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
+            {cycleFilter
+              ? // When filtering by cycle, show collapsible groups
+                Object.entries(groupedUsers()).map(
+                  ([cycleCode, cycleUsers]) => (
+                    <React.Fragment key={cycleCode}>
+                      <tr className="cycle-group-header">
+                        <td colSpan={8}>
+                          <button
+                            className="cycle-toggle-btn"
+                            onClick={() => toggleCycleCollapse(cycleCode)}
+                          >
+                            <span className="toggle-icon">
+                              {collapsedCycles.has(cycleCode) ? "▶" : "▼"}
+                            </span>
+                            <span className="cycle-name">
+                              {cycleCode} ({cycleUsers.length} users)
+                            </span>
+                          </button>
+                        </td>
+                      </tr>
+                      {!collapsedCycles.has(cycleCode) &&
+                        cycleUsers.map((user) => renderUserRow(user))}
+                    </React.Fragment>
+                  )
+                )
+              : // When not filtering by cycle, show all users normally
+                filteredUsers.map((user) => renderUserRow(user))}
           </tbody>
         </table>
 
-        {users.length === 0 && <div className="no-users">No users found</div>}
+        {filteredUsers.length === 0 && (
+          <div className="no-users">No users found</div>
+        )}
       </div>
 
       {/* Reset Password Modal */}
       {resetPasswordModal && (
-        <div className="modal-overlay" onClick={() => setResetPasswordModal(null)}>
+        <div
+          className="modal-overlay"
+          onClick={() => setResetPasswordModal(null)}
+        >
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <h3>Password Reset Complete</h3>
             <p>
-              Password has been reset for user: <strong>{resetPasswordModal.username}</strong>
+              Password has been reset for user:{" "}
+              <strong>{resetPasswordModal.username}</strong>
             </p>
             <p>2FA authentication has been removed.</p>
-            <div style={{
-              background: "#fffbeb",
-              border: "2px solid #fbbf24",
-              borderRadius: "8px",
-              padding: "1rem",
-              margin: "1rem 0"
-            }}>
-              <p style={{ margin: "0 0 0.5rem 0", fontWeight: "bold" }}>
+            <div
+              style={{
+                background: "rgba(251, 191, 36, 0.15)",
+                border: "2px solid #fbbf24",
+                borderRadius: "8px",
+                padding: "1rem",
+                margin: "1rem 0",
+              }}
+            >
+              <p
+                style={{
+                  margin: "0 0 0.5rem 0",
+                  fontWeight: "bold",
+                  color: "#fbbf24",
+                }}
+              >
                 ⚠️ Temporary Password (copy now):
               </p>
-              <code style={{
-                display: "block",
-                background: "white",
-                padding: "0.75rem",
-                borderRadius: "4px",
-                fontSize: "1.2rem",
-                fontFamily: "monospace",
-                letterSpacing: "0.1em",
-                textAlign: "center"
-              }}>
+              <code
+                style={{
+                  display: "block",
+                  background: "rgba(0, 0, 0, 0.3)",
+                  padding: "0.75rem",
+                  borderRadius: "4px",
+                  fontSize: "1.2rem",
+                  fontFamily: "monospace",
+                  letterSpacing: "0.1em",
+                  textAlign: "center",
+                  color: "#66bb6a",
+                  border: "1px solid rgba(255, 255, 255, 0.2)",
+                }}
+              >
                 {resetPasswordModal.tempPassword}
               </code>
             </div>
-            <p style={{ fontSize: "0.875rem", color: "#6b7280" }}>
-              This password will not be shown again. The user should change it after logging in.
+            <p style={{ fontSize: "0.875rem", color: "#a0a0a0" }}>
+              This password will not be shown again. The user should change it
+              after logging in.
             </p>
             <button
               className="btn btn--primary"

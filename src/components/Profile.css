@@ -48,6 +48,26 @@
 
 .avatar-wrapper {
   flex-shrink: 0;
+  position: relative;
+}
+
+/* Avatar upload container */
+.avatar-upload-container {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.avatar-upload-container.dragging {
+  transform: scale(1.05);
+}
+
+.avatar-upload-container.uploading {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 .profile-avatar {
@@ -57,6 +77,68 @@
   object-fit: cover;
   border: 3px solid #e2e8f0;
   background-color: #f7fafc;
+  transition: border-color 0.3s ease;
+}
+
+.avatar-upload-container:hover .profile-avatar {
+  border-color: #cbd5e0;
+}
+
+.avatar-upload-container.dragging .profile-avatar {
+  border-color: #4299e1;
+  border-style: dashed;
+}
+
+/* Pencil edit button */
+.avatar-edit-button {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #4299e1;
+  border: 3px solid white;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(66, 153, 225, 0.4);
+}
+
+.avatar-edit-button:hover:not(:disabled) {
+  background: #3182ce;
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(66, 153, 225, 0.6);
+}
+
+.avatar-edit-button:disabled {
+  background: #a0aec0;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.avatar-edit-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Spinner for uploading state */
+.spinner-small {
+  display: inline-block;
+  animation: spin 1s linear infinite;
+  font-size: 16px;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .profile-info {
@@ -390,7 +472,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.8);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -399,12 +481,21 @@
 }
 
 .modal-content {
-  background: white;
+  background: #1e1e1e;
   border-radius: 12px;
   max-width: 600px;
   width: 100%;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1),
-    0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3),
+    0 10px 10px -5px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.modal-content h3 {
+  color: #e0e0e0;
+}
+
+.modal-content p {
+  color: #b0b0b0;
 }

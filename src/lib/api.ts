@@ -32,6 +32,8 @@ export interface User {
   role: "user" | "admin" | "super_admin";
   createdAt?: string;
   updatedAt?: string;
+  cycles?: string;
+  cycleIds?: string;
 }
 
 export interface Person {

@@ -45,6 +45,8 @@ const Profile: React.FC<ProfileProps> = ({ user, onProfileUpdate }) => {
   const [twoFactorSecret, setTwoFactorSecret] = useState("");
   const [backupCodes, setBackupCodes] = useState<string[]>([]);
   const [showBackupCodes, setShowBackupCodes] = useState(false);
+  // Photo upload state
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 
   // Fetch user stats (post count, streak)
   useEffect(() => {
@@ -195,6 +197,73 @@ const Profile: React.FC<ProfileProps> = ({ user, onProfileUpdate }) => {
     }
   };
 
+  // Handle photo upload to Cloudinary
+  const handlePhotoUpload = async (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      setError("Please select an image file");
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setError("Image size must be less than 10MB");
+      return;
+    }
+
+    setIsUploadingPhoto(true);
+    setError("");
+
+    try {
+      const API_BASE_URL =
+        import.meta.env.VITE_API_URL || "http://localhost:3001/api";
+      const authToken = localStorage.getItem("authToken");
+
+      const formData = new FormData();
+      formData.append("photo", file);
+
+      const response = await fetch(
+        `${API_BASE_URL}/users/${user.id}/profile-photo`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+          },
+          body: formData,
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to upload photo");
+      }
+
+      if (data.success && data.photoUrl) {
+        setProfilePhoto(data.photoUrl);
+        setSuccess("Profile photo updated successfully!");
+
+        // Update stored user data
+        const updatedUser = { ...user, profilePhoto: data.photoUrl };
+        localStorage.setItem("user", JSON.stringify(updatedUser));
+        onProfileUpdate(updatedUser);
+      } else {
+        throw new Error("Invalid response from server");
+      }
+    } catch (err) {
+      console.error("Photo upload error:", err);
+      setError(err instanceof Error ? err.message : "Failed to upload photo");
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
+
+  // Handle file input change
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handlePhotoUpload(file);
+    }
+  };
+
   return (
     <div className="profile-page">
       <div className="profile-container">
@@ -209,11 +278,57 @@ const Profile: React.FC<ProfileProps> = ({ user, onProfileUpdate }) => {
         <div className="profile-summary-card">
           <div className="profile-avatar-section">
             <div className="avatar-wrapper">
-              <img
-                src={profilePhoto || "/DevLogApp/apple-touch-icon (2).png"}
-                alt="Profile"
-                className="profile-avatar"
-              />
+              {isEditing ? (
+                <div className="avatar-upload-container">
+                  <img
+                    src={profilePhoto || "/DevLogApp/apple-touch-icon (2).png"}
+                    alt="Profile"
+                    className="profile-avatar"
+                  />
+                  <input
+                    type="file"
+                    id="photoFileInput"
+                    accept="image/*"
+                    onChange={handleFileInputChange}
+                    style={{ display: "none" }}
+                    disabled={isUploadingPhoto}
+                  />
+                  <button
+                    type="button"
+                    className="avatar-edit-button"
+                    onClick={() =>
+                      document.getElementById("photoFileInput")?.click()
+                    }
+                    disabled={isUploadingPhoto}
+                    title="Change profile photo"
+                  >
+                    {isUploadingPhoto ? (
+                      <span className="spinner-small">⟳</span>
+                    ) : (
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                        <path d="m15 5 4 4" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+              ) : (
+                <img
+                  src={profilePhoto || "/DevLogApp/apple-touch-icon (2).png"}
+                  alt="Profile"
+                  className="profile-avatar"
+                />
+              )}
             </div>
             <div className="profile-info">
               <h2 className="profile-name">{name || user.username}</h2>
@@ -327,29 +442,6 @@ const Profile: React.FC<ProfileProps> = ({ user, onProfileUpdate }) => {
 
             <div className="form-card">
               <div className="form-card-header">
-                <h3 className="form-card-title">Profile Photo</h3>
-                <p className="form-card-description">
-                  Update your profile picture
-                </p>
-              </div>
-
-              <div className="form-card-body">
-                <div className="form-group">
-                  <label htmlFor="profilePhoto">Photo URL</label>
-                  <input
-                    type="text"
-                    id="profilePhoto"
-                    value={profilePhoto}
-                    onChange={(e) => setProfilePhoto(e.target.value)}
-                    placeholder="https://example.com/photo.jpg"
-                  />
-                  <small>Enter a URL to your profile photo</small>
-                </div>
-              </div>
-            </div>
-
-            <div className="form-card">
-              <div className="form-card-header">
                 <h3 className="form-card-title">Professional Links</h3>
                 <p className="form-card-description">
                   Add your professional profiles
@@ -440,13 +532,45 @@ const Profile: React.FC<ProfileProps> = ({ user, onProfileUpdate }) => {
                         <button
                           type="button"
                           className="btn btn-primary"
-                          onClick={() => {
-                            // TODO: Add backend call to generate 2FA secret
-                            setTwoFactorQR(
-                              "https://via.placeholder.com/200?text=QR+Code"
-                            );
-                            setTwoFactorSecret("JBSWY3DPEHPK3PXP");
-                            setShowTwoFactorSetup(true);
+                          onClick={async () => {
+                            try {
+                              setError("");
+                              const token = localStorage.getItem("authToken");
+
+                              if (!token) {
+                                setError("Please log in to enable 2FA");
+                                return;
+                              }
+
+                              const response = await fetch(
+                                `${
+                                  import.meta.env.VITE_API_URL ||
+                                  "http://localhost:3001/api"
+                                }/auth/setup-2fa`,
+                                {
+                                  method: "POST",
+                                  headers: {
+                                    "Content-Type": "application/json",
+                                    Authorization: `Bearer ${token}`,
+                                  },
+                                }
+                              );
+
+                              const data = await response.json();
+
+                              if (data.success) {
+                                setTwoFactorQR(data.qrCode);
+                                setTwoFactorSecret(data.secret);
+                                setShowTwoFactorSetup(true);
+                              } else {
+                                setError(data.error || "Failed to setup 2FA");
+                              }
+                            } catch (err) {
+                              console.error("2FA setup error:", err);
+                              setError(
+                                "Failed to setup 2FA. Please try again."
+                              );
+                            }
                           }}
                         >
                           Enable 2FA
