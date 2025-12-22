@@ -17,6 +17,12 @@ const AdminUserManagement: React.FC = () => {
   });
   const [formError, setFormError] = useState("");
   const [formSuccess, setFormSuccess] = useState("");
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [resetPasswordModal, setResetPasswordModal] = useState<{
+    userId: number;
+    username: string;
+    tempPassword?: string;
+  } | null>(null);
 
   const fetchUsers = async () => {
     try {
@@ -37,6 +43,11 @@ const AdminUserManagement: React.FC = () => {
   };
 
   useEffect(() => {
+    // Get current user from localStorage
+    const userStr = localStorage.getItem("user");
+    if (userStr) {
+      setCurrentUser(JSON.parse(userStr));
+    }
     fetchUsers();
   }, []);
 
@@ -107,6 +118,28 @@ const AdminUserManagement: React.FC = () => {
     }
   };
 
+  const handleResetPassword = async (userId: number, username: string) => {
+    if (
+      !confirm(
+        `Are you sure you want to reset password for "${username}"? This will:\n- Generate a temporary password\n- Remove 2FA authentication\n\nThe temporary password will be displayed once.`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      const { tempPassword } = await userApi.resetPassword(userId);
+      setResetPasswordModal({ userId, username, tempPassword });
+      // Update user state to reflect 2FA removed
+      fetchUsers();
+    } catch (err) {
+      console.error("Error resetting password:", err);
+      alert(
+        err instanceof ApiError ? err.message : "Failed to reset password"
+      );
+    }
+  };
+
   const getRoleBadgeClass = (role: string) => {
     switch (role) {
       case "super_admin":
@@ -131,10 +164,11 @@ const AdminUserManagement: React.FC = () => {
       <div className="admin-user-management__header">
         <h2>User Management</h2>
         <button
-          className="btn btn--primary"
+          className="btn btn--create-user"
           onClick={() => setShowCreateForm(!showCreateForm)}
+          title={showCreateForm ? "Cancel" : "Create New User"}
         >
-          {showCreateForm ? "Cancel" : "Create New User"}
+          {showCreateForm ? "✕" : "+"}
         </button>
       </div>
 
@@ -298,6 +332,17 @@ const AdminUserManagement: React.FC = () => {
                     : "N/A"}
                 </td>
                 <td>
+                  {currentUser?.role === "super_admin" && (
+                    <button
+                      className="btn btn--warning btn--small"
+                      onClick={() =>
+                        handleResetPassword(user.id, user.username)
+                      }
+                      style={{ marginRight: "0.5rem" }}
+                    >
+                      Reset Password
+                    </button>
+                  )}
                   <button
                     className="btn btn--danger btn--small"
                     onClick={() => handleDeleteUser(user.id, user.username)}
@@ -312,6 +357,52 @@ const AdminUserManagement: React.FC = () => {
 
         {users.length === 0 && <div className="no-users">No users found</div>}
       </div>
+
+      {/* Reset Password Modal */}
+      {resetPasswordModal && (
+        <div className="modal-overlay" onClick={() => setResetPasswordModal(null)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <h3>Password Reset Complete</h3>
+            <p>
+              Password has been reset for user: <strong>{resetPasswordModal.username}</strong>
+            </p>
+            <p>2FA authentication has been removed.</p>
+            <div style={{
+              background: "#fffbeb",
+              border: "2px solid #fbbf24",
+              borderRadius: "8px",
+              padding: "1rem",
+              margin: "1rem 0"
+            }}>
+              <p style={{ margin: "0 0 0.5rem 0", fontWeight: "bold" }}>
+                ⚠️ Temporary Password (copy now):
+              </p>
+              <code style={{
+                display: "block",
+                background: "white",
+                padding: "0.75rem",
+                borderRadius: "4px",
+                fontSize: "1.2rem",
+                fontFamily: "monospace",
+                letterSpacing: "0.1em",
+                textAlign: "center"
+              }}>
+                {resetPasswordModal.tempPassword}
+              </code>
+            </div>
+            <p style={{ fontSize: "0.875rem", color: "#6b7280" }}>
+              This password will not be shown again. The user should change it after logging in.
+            </p>
+            <button
+              className="btn btn--primary"
+              onClick={() => setResetPasswordModal(null)}
+              style={{ width: "100%" }}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

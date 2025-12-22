@@ -77,6 +77,7 @@ export interface ApiResponse<T> {
   users?: T;
   people?: T;
   cycles?: T;
+  tempPassword?: string;
   error?: string;
   message?: string;
   count?: number;
@@ -373,6 +374,23 @@ export const userApi = {
         response
       );
     }
+  },
+
+  // Reset user password and remove 2FA (super_admin only)
+  async resetPassword(userId: number): Promise<{ tempPassword: string }> {
+    const response = await apiFetch<any>(`/admin/reset-password/${userId}`, {
+      method: "POST",
+    });
+
+    if (!response.success || !response.tempPassword) {
+      throw new ApiError(
+        response.error || "Failed to reset password",
+        500,
+        response
+      );
+    }
+
+    return { tempPassword: response.tempPassword };
   },
 };
 

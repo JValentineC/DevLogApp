@@ -159,16 +159,20 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onClose }) => {
           )}
 
           <div className="form-group">
-            <label htmlFor="username">Username</label>
+            <label htmlFor="username">Username or Email</label>
             <input
               type="text"
               id="username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
+              placeholder="Enter username or email"
               required
               autoComplete="username"
               autoFocus
             />
+            <small style={{ color: "#6b7280", fontSize: "0.875rem" }}>
+              ⚠️ Username is case-sensitive
+            </small>
           </div>
 
           <div className="form-group">

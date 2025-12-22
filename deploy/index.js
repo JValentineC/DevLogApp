@@ -89,20 +89,20 @@ app.post("/api/auth/login", authLimiter, async (req, res) => {
     if (!username || !password) {
       return res.status(400).json({
         success: false,
-        error: "Username and password are required",
+        error: "Username/email and password are required",
       });
     }
 
-    // Query user from database
+    // Query user from database (case-sensitive username OR email)
     const [users] = await pool.execute(
-      "SELECT id, username, password, email, name, profilePhoto, bio, role, twoFactorEnabled, twoFactorSecret, backupCodes FROM User WHERE username = ?",
-      [username]
+      "SELECT id, username, password, email, name, profilePhoto, bio, role, twoFactorEnabled, twoFactorSecret, backupCodes FROM User WHERE BINARY username = ? OR LOWER(email) = LOWER(?)",
+      [username, username]
     );
 
     if (users.length === 0) {
       return res.status(401).json({
         success: false,
-        error: "Invalid username or password",
+        error: "Invalid username/email or password",
       });
     }
 
@@ -114,7 +114,7 @@ app.post("/api/auth/login", authLimiter, async (req, res) => {
     if (!isPasswordValid) {
       return res.status(401).json({
         success: false,
-        error: "Invalid username or password",
+        error: "Invalid username/email or password",
       });
     }
 
@@ -298,10 +298,176 @@ app.post("/api/auth/verify-2fa", authLimiter, async (req, res) => {
   }
 });
 
+// POST /api/auth/verify-alumni - Check if user is in pre-approved alumni list
+app.post("/api/auth/verify-alumni", async (req, res) => {
+  try {
+    const { email, firstName, lastName, cycleCode } = req.body;
+
+    if (!email && (!firstName || !lastName)) {
+      return res.status(400).json({
+        success: false,
+        error: "Email or full name is required for verification",
+      });
+    }
+
+    let matches = [];
+
+    // Check 1: Email match in Person table
+    if (email) {
+      const [emailMatches] = await pool.execute(
+        `SELECT u.id, u.firstName, u.lastName, u.email, u.username, p.orgEmail, p.icaaTier, p.accountStatus 
+         FROM User u 
+         LEFT JOIN Person p ON u.id = p.userId 
+         WHERE LOWER(u.email) = LOWER(?) OR LOWER(p.orgEmail) = LOWER(?)`,
+        [email, email]
+      );
+      matches.push(...emailMatches);
+    }
+
+    // Check 2: First name + Last name match
+    if (firstName && lastName && matches.length === 0) {
+      const [nameMatches] = await pool.execute(
+        `SELECT u.id, u.firstName, u.lastName, u.email, u.username, p.orgEmail, p.icaaTier, p.accountStatus 
+         FROM User u 
+         LEFT JOIN Person p ON u.id = p.userId 
+         WHERE LOWER(u.firstName) = LOWER(?) AND LOWER(u.lastName) = LOWER(?)`,
+        [firstName, lastName]
+      );
+      matches.push(...nameMatches);
+    }
+
+    // Check 3: First name + Cycle code match (if provided)
+    if (firstName && cycleCode && matches.length === 0) {
+      const [cycleMatches] = await pool.execute(
+        `SELECT u.id, u.firstName, u.lastName, u.email, u.username, p.orgEmail, p.icaaTier, p.accountStatus 
+         FROM User u 
+         LEFT JOIN Person p ON u.id = p.userId 
+         WHERE LOWER(u.firstName) = LOWER(?) AND p.icaaTier = ?`,
+        [firstName, cycleCode]
+      );
+      matches.push(...cycleMatches);
+    }
+
+    // Remove duplicates based on user id
+    const uniqueMatches = matches.reduce((acc, current) => {
+      const exists = acc.find((item) => item.id === current.id);
+      if (!exists) {
+        acc.push(current);
+      }
+      return acc;
+    }, []);
+
+    if (uniqueMatches.length === 0) {
+      return res.json({
+        success: true,
+        verified: false,
+        matches: [],
+        message:
+          "No matching alumni record found. Only i.c.Stars/iCAA alumni can register.",
+      });
+    }
+
+    // Check if any match already has an activated account
+    const alreadyActivated = uniqueMatches.find(
+      (match) =>
+        match.accountStatus === "activated" || match.accountStatus === "active"
+    );
+
+    if (alreadyActivated) {
+      return res.json({
+        success: true,
+        verified: false,
+        alreadyRegistered: true,
+        matches: uniqueMatches,
+        message: "This person already has an account. Please sign in instead.",
+      });
+    }
+
+    res.json({
+      success: true,
+      verified: true,
+      matches: uniqueMatches,
+      matchCount: uniqueMatches.length,
+      message:
+        uniqueMatches.length === 1
+          ? "Alumni verified! You can proceed with registration."
+          : `Found ${uniqueMatches.length} potential matches. Please verify your information.`,
+    });
+  } catch (error) {
+    console.error("Error verifying alumni:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to verify alumni status",
+      message: error.message,
+    });
+  }
+});
+
+// GET /api/auth/check-email - Check if email exists in pre-approved alumni list
+app.get("/api/auth/check-email/:email", async (req, res) => {
+  try {
+    const { email } = req.params;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        error: "Email is required",
+      });
+    }
+
+    // Check if email exists in User or Person table (pre-registered alumni)
+    const [users] = await pool.execute(
+      "SELECT id, email, username FROM User WHERE LOWER(email) = LOWER(?)",
+      [email]
+    );
+
+    const [persons] = await pool.execute(
+      "SELECT id, orgEmail FROM Person WHERE LOWER(orgEmail) = LOWER(?)",
+      [email]
+    );
+
+    const exists = users.length > 0 || persons.length > 0;
+    const isRegistered = users.length > 0 && users[0].username !== null;
+
+    res.json({
+      success: true,
+      exists, // Email is in the pre-approved alumni list
+      isRegistered, // Email already has a completed account
+      message: exists
+        ? isRegistered
+          ? "This email already has an account"
+          : "Email verified - you can proceed with registration"
+        : "This email is not in our alumni database",
+    });
+  } catch (error) {
+    console.error("Error checking email:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to verify email",
+      message: error.message,
+    });
+  }
+});
+
 // POST /api/auth/register - User registration
 app.post("/api/auth/register", authLimiter, async (req, res) => {
   try {
-    const { username, email, password, firstName, lastName } = req.body;
+    const {
+      username,
+      email,
+      password,
+      firstName,
+      middleName,
+      lastName,
+      passwordHint,
+      bio,
+      phone,
+      linkedInUrl,
+      portfolioUrl,
+      cycleCode,
+      isICaaMember,
+      enable2FA,
+    } = req.body;
 
     // Validation
     if (!username || !email || !password || !firstName || !lastName) {
@@ -318,58 +484,236 @@ app.post("/api/auth/register", authLimiter, async (req, res) => {
       });
     }
 
+    // Validate username has no spaces
+    if (username.includes(" ")) {
+      return res.status(400).json({
+        success: false,
+        error: "Username cannot contain spaces",
+      });
+    }
+
+    // Validate username length
+    if (username.length < 4) {
+      return res.status(400).json({
+        success: false,
+        error: "Username must be at least 4 characters long",
+      });
+    }
+
     // Validate password strength
-    if (password.length < 6) {
+    if (password.length < 8) {
       return res.status(400).json({
         success: false,
-        error: "Password must be at least 6 characters",
+        error: "Password must be at least 8 characters",
       });
     }
 
-    // Validate email format
+    // Validate email format and @icstars.org domain
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
+    if (
+      !emailRegex.test(email) ||
+      !email.toLowerCase().endsWith("@icstars.org")
+    ) {
       return res.status(400).json({
         success: false,
-        error: "Invalid email format",
+        error: "Must use an @icstars.org email address",
       });
     }
 
-    // Check if username or email already exists
+    // Check if this email/name combo exists in pre-loaded alumni
     const [existingUsers] = await pool.execute(
-      "SELECT id FROM User WHERE username = ? OR email = ?",
-      [username, email]
+      `SELECT u.id, u.username, p.id as personId, p.accountStatus 
+       FROM User u 
+       LEFT JOIN Person p ON u.id = p.userId 
+       WHERE (LOWER(u.email) = LOWER(?) OR LOWER(p.orgEmail) = LOWER(?)) 
+       AND LOWER(u.firstName) = LOWER(?) 
+       AND LOWER(u.lastName) = LOWER(?)`,
+      [email, email, firstName, lastName]
     );
 
-    if (existingUsers.length > 0) {
+    // Also check for Person records without a linked User (pre-loaded data)
+    const [orphanedPersons] = await pool.execute(
+      `SELECT id as personId, accountStatus 
+       FROM Person 
+       WHERE LOWER(orgEmail) = LOWER(?) 
+       AND LOWER(firstName) = LOWER(?) 
+       AND LOWER(lastName) = LOWER(?)
+       AND userId IS NULL`,
+      [email, firstName, lastName]
+    );
+
+    if (existingUsers.length === 0 && orphanedPersons.length === 0) {
+      return res.status(403).json({
+        success: false,
+        error:
+          "You are not in our alumni database. Only verified i.c.Stars/iCAA alumni can register.",
+      });
+    }
+
+    const existingUser = existingUsers[0];
+    const orphanedPerson = orphanedPersons[0];
+
+    // Check if account is already activated
+    if (
+      existingUser?.accountStatus === "activated" ||
+      existingUser?.accountStatus === "active" ||
+      orphanedPerson?.accountStatus === "activated" ||
+      orphanedPerson?.accountStatus === "active"
+    ) {
       return res.status(409).json({
         success: false,
-        error: "Username or email already exists",
+        error:
+          "This account has already been activated. Please sign in instead.",
+      });
+    }
+
+    // Check if username is already taken by someone else (case-sensitive)
+    const [usernameCheck] = await pool.execute(
+      "SELECT id FROM User WHERE BINARY username = ? AND id != ?",
+      [username, existingUser.id]
+    );
+
+    if (usernameCheck.length > 0) {
+      return res.status(409).json({
+        success: false,
+        error: "Username is already taken. Please choose another.",
       });
     }
 
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create user
-    const [result] = await pool.execute(
-      "INSERT INTO User (username, email, password, firstName, lastName, role, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, 'user', NOW(), NOW())",
-      [username, email, hashedPassword, firstName, lastName]
+    // Update the existing User record with account details
+    await pool.execute(
+      `UPDATE User 
+       SET username = ?, 
+           password = ?, 
+           email = ?,
+           middleName = ?,
+           passwordHint = ?,
+           bio = ?,
+           updatedAt = NOW() 
+       WHERE id = ?`,
+      [
+        username,
+        hashedPassword,
+        email,
+        middleName,
+        passwordHint,
+        bio,
+        existingUser.id,
+      ]
     );
 
+    // Update or create Person record
+    const fullName = `${firstName}${
+      middleName ? " " + middleName : ""
+    } ${lastName}`;
+
+    if (existingUser?.personId || orphanedPerson?.personId) {
+      // Update existing Person record
+      const personIdToUpdate =
+        existingUser?.personId || orphanedPerson.personId;
+      await pool.execute(
+        `UPDATE Person 
+         SET userId = ?,
+             firstName = ?,
+             lastName = ?,
+             fullName = ?,
+             orgEmail = ?,
+             phone = ?,
+             linkedInUrl = ?,
+             portfolioUrl = ?,
+             isICaaMember = ?,
+             accountStatus = 'activated',
+             icaaTier = ?,
+             updatedAt = NOW()
+         WHERE id = ?`,
+        [
+          existingUser.id,
+          firstName,
+          lastName,
+          fullName,
+          email,
+          phone,
+          linkedInUrl,
+          portfolioUrl,
+          isICaaMember ? 1 : 0,
+          cycleCode,
+          personIdToUpdate,
+        ]
+      );
+    } else {
+      // Create new Person record (shouldn't happen with pre-loaded data)
+      await pool.execute(
+        `INSERT INTO Person (userId, firstName, lastName, fullName, orgEmail, phone, linkedInUrl, portfolioUrl, isICaaMember, accountStatus, icaaTier, createdAt, updatedAt) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'activated', ?, NOW(), NOW())`,
+        [
+          existingUser.id,
+          firstName,
+          lastName,
+          fullName,
+          email,
+          phone,
+          linkedInUrl,
+          portfolioUrl,
+          isICaaMember ? 1 : 0,
+          cycleCode,
+        ]
+      );
+    }
+
     // Generate JWT token
-    const token = generateToken(result.insertId, username, email, "user");
+    const token = generateToken(existingUser.id, username, email, "user");
+
+    // Handle 2FA setup if requested
+    let twoFactorData = {};
+    if (enable2FA) {
+      const secret = speakeasy.generateSecret({
+        name: `DevLogs (${username})`,
+        length: 32,
+      });
+
+      // Generate backup codes
+      const backupCodes = [];
+      for (let i = 0; i < 10; i++) {
+        backupCodes.push(
+          Math.random().toString(36).substring(2, 10).toUpperCase()
+        );
+      }
+
+      // Update user with 2FA data
+      await pool.execute(
+        `UPDATE User 
+         SET twoFactorEnabled = 1,
+             twoFactorSecret = ?,
+             backupCodes = ?,
+             twoFactorEnabledAt = NOW()
+         WHERE id = ?`,
+        [secret.base32, JSON.stringify(backupCodes), existingUser.id]
+      );
+
+      const QRCode = await import("qrcode");
+      const qrCodeDataUrl = await QRCode.toDataURL(secret.otpauth_url);
+
+      twoFactorData = {
+        twoFactorSecret: secret.base32,
+        qrCode: qrCodeDataUrl,
+        backupCodes,
+      };
+    }
 
     res.status(201).json({
       success: true,
-      message: "User registered successfully",
+      message: "Account activated successfully",
       user: {
-        id: result.insertId,
+        id: existingUser.id,
         username,
         email,
-        name: `${firstName} ${lastName}`,
+        name: `${firstName}${middleName ? " " + middleName : ""} ${lastName}`,
       },
       token,
+      ...twoFactorData,
     });
   } catch (error) {
     console.error("Error during registration:", error);
@@ -1349,6 +1693,51 @@ app.get(
       res.status(500).json({
         success: false,
         error: "Failed to fetch people",
+        message: error.message,
+      });
+    }
+  }
+);
+
+// POST /api/admin/reset-password/:userId - Reset user password and remove 2FA (super_admin only)
+app.post(
+  "/api/admin/reset-password/:userId",
+  authenticateToken,
+  requireRole("super_admin"),
+  async (req, res) => {
+    try {
+      const { userId } = req.params;
+
+      // Generate a random temporary password (8 characters)
+      const tempPassword = Math.random().toString(36).slice(-8).toUpperCase() + 
+                          Math.random().toString(36).slice(-8).toLowerCase();
+
+      // Hash the temporary password
+      const hashedPassword = await bcrypt.hash(tempPassword, 10);
+
+      // Update user: reset password and remove 2FA
+      await pool.execute(
+        `UPDATE User 
+         SET password = ?,
+             twoFactorEnabled = 0,
+             twoFactorSecret = NULL,
+             backupCodes = NULL,
+             twoFactorEnabledAt = NULL,
+             updatedAt = NOW()
+         WHERE id = ?`,
+        [hashedPassword, userId]
+      );
+
+      res.json({
+        success: true,
+        message: "Password reset successfully",
+        tempPassword: tempPassword,
+      });
+    } catch (error) {
+      console.error("Error resetting password:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to reset password",
         message: error.message,
       });
     }

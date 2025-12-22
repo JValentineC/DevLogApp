@@ -20,6 +20,7 @@
     "jsonwebtoken": "^9.0.3",
     "mysql2": "^3.11.5",
     "prisma": "^5.22.0",
+    "qrcode": "^1.5.3",
     "speakeasy": "^2.0.0"
   }
 }

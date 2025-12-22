@@ -5,6 +5,7 @@ import EditLogger from "./components/EditLogger";
 import DevLogList from "./components/DevLogList";
 import About from "./components/About";
 import Login from "./components/Login";
+import Landing from "./components/Landing";
 import Profile from "./components/Profile";
 import UserList from "./components/UserList";
 import AdminUserManagement from "./components/AdminUserManagement";
@@ -91,6 +92,11 @@ function App() {
     setEditingEntry(null);
     setRefreshKey((prev) => prev + 1);
   };
+
+  // Show landing page if not logged in
+  if (!user) {
+    return <Landing onLoginSuccess={handleLoginSuccess} />;
+  }
 
   return (
     <>

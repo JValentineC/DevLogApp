@@ -207,6 +207,11 @@
   color: #81c784;
 }
 
+.status-activated {
+  background: rgba(76, 175, 80, 0.2);
+  color: #66bb6a;
+}
+
 .status-inactive {
   background: rgba(244, 67, 54, 0.2);
   color: #e57373;
