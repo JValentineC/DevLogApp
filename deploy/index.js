@@ -86,6 +86,12 @@ const authLimiter = rateLimit({
   message: "Too many login attempts, please try again later.",
 });
 
+const uploadLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 10, // Limit each IP to 10 uploads per hour
+  message: "Too many upload requests, please try again later.",
+});
+
 app.use("/api/", limiter);
 
 // Middleware
@@ -1014,15 +1020,64 @@ app.post(
   "/api/users/:id/profile-photo",
   authenticateToken,
   authorizeOwner,
+  uploadLimiter,
   upload.single("photo"),
   async (req, res) => {
     try {
       const userId = parseInt(req.params.id);
 
+      // Validate file exists
       if (!req.file) {
         return res.status(400).json({
           success: false,
           error: "No photo file provided",
+        });
+      }
+
+      // Server-side file type validation (check MIME type)
+      const allowedMimeTypes = [
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "image/gif",
+        "image/webp",
+      ];
+      if (!allowedMimeTypes.includes(req.file.mimetype)) {
+        return res.status(400).json({
+          success: false,
+          error:
+            "Invalid file type. Only JPEG, PNG, GIF, and WebP images are allowed.",
+        });
+      }
+
+      // Server-side file size validation (10MB max)
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      if (req.file.size > maxSize) {
+        return res.status(400).json({
+          success: false,
+          error: "File too large. Maximum size is 10MB.",
+        });
+      }
+
+      // Additional validation: Check magic numbers (file signature)
+      // This prevents users from renaming non-image files to bypass MIME type check
+      const fileSignatures = {
+        ffd8ff: "image/jpeg",
+        "89504e47": "image/png",
+        47494638: "image/gif",
+        52494646: "image/webp", // RIFF header for WebP
+      };
+
+      const fileHeader = req.file.buffer.toString("hex", 0, 4);
+      const isValidImage = Object.keys(fileSignatures).some((sig) =>
+        fileHeader.startsWith(sig)
+      );
+
+      if (!isValidImage) {
+        return res.status(400).json({
+          success: false,
+          error:
+            "Invalid image file. File content does not match image format.",
         });
       }
 
@@ -1038,6 +1093,9 @@ app.post(
               { quality: "auto" },
               { fetch_format: "auto" },
             ],
+            // Additional Cloudinary security options
+            resource_type: "image",
+            allowed_formats: ["jpg", "png", "gif", "webp"],
           },
           (error, result) => {
             if (error) reject(error);
@@ -1061,10 +1119,16 @@ app.post(
       });
     } catch (error) {
       console.error("Error uploading profile photo:", error);
+
+      // Don't expose internal error details to client
+      const errorMessage =
+        error.message?.includes("file") || error.message?.includes("upload")
+          ? error.message
+          : "Failed to upload profile photo";
+
       res.status(500).json({
         success: false,
-        error: "Failed to upload profile photo",
-        message: error.message,
+        error: errorMessage,
       });
     }
   }
