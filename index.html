@@ -5,6 +5,16 @@
     <link rel="icon" type="image/png" href="/DevLogApp/favicon-32x32 (2).png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>DevLogs</title>
+    <script>
+      // GitHub Pages SPA redirect hack - restore the URL
+      (function() {
+        var redirect = sessionStorage.redirect;
+        delete sessionStorage.redirect;
+        if (redirect && redirect !== location.href) {
+          history.replaceState(null, null, redirect);
+        }
+      })();
+    </script>
     <script type="module" crossorigin src="/DevLogApp/assets/index-BrUvaczm.js"></script>
     <link rel="stylesheet" crossorigin href="/DevLogApp/assets/index-D4GfGhW4.css">
   </head>
