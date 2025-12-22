@@ -831,7 +831,7 @@ app.get(
       const [users] = await pool.execute(
         `SELECT 
           u.id, u.username, u.email, u.name, u.profilePhoto, u.bio, u.role,
-          p.linkedInUrl, p.portfolioUrl
+          p.linkedInUrl, p.portfolioUrl, p.githubUrl
         FROM User u
         LEFT JOIN Person p ON u.id = p.userId
         WHERE u.id = ?`,
@@ -875,6 +875,7 @@ app.put(
         profilePhoto,
         linkedInUrl,
         portfolioUrl,
+        githubUrl,
         currentPassword,
         newPassword,
       } = req.body;
@@ -937,7 +938,7 @@ app.put(
       }
 
       // Handle social links (Person table update/insert)
-      if (linkedInUrl !== undefined || portfolioUrl !== undefined) {
+      if (linkedInUrl !== undefined || portfolioUrl !== undefined || githubUrl !== undefined) {
         // First, check if a Person record exists for this user
         const [existingPersons] = await pool.execute(
           "SELECT id FROM Person WHERE userId = ?",
@@ -948,8 +949,8 @@ app.put(
           // Update existing Person record
           const personId = existingPersons[0].id;
           await pool.execute(
-            "UPDATE Person SET linkedInUrl = ?, portfolioUrl = ? WHERE id = ?",
-            [linkedInUrl || null, portfolioUrl || null, personId]
+            "UPDATE Person SET linkedInUrl = ?, portfolioUrl = ?, githubUrl = ? WHERE id = ?",
+            [linkedInUrl || null, portfolioUrl || null, githubUrl || null, personId]
           );
         } else {
           // Create new Person record linked to this user
@@ -968,7 +969,7 @@ app.put(
             const fullName = user.name || user.username || "User";
 
             await pool.execute(
-              "INSERT INTO Person (userId, firstName, lastName, fullName, linkedInUrl, portfolioUrl) VALUES (?, ?, ?, ?, ?, ?)",
+              "INSERT INTO Person (userId, firstName, lastName, fullName, linkedInUrl, portfolioUrl, githubUrl) VALUES (?, ?, ?, ?, ?, ?, ?)",
               [
                 userId,
                 firstName,
@@ -976,6 +977,7 @@ app.put(
                 fullName,
                 linkedInUrl || null,
                 portfolioUrl || null,
+                githubUrl || null,
               ]
             );
           }
@@ -986,7 +988,7 @@ app.put(
       const [updatedUsers] = await pool.execute(
         `SELECT 
           u.id, u.username, u.email, u.name, u.profilePhoto, u.bio,
-          p.linkedInUrl, p.portfolioUrl
+          p.linkedInUrl, p.portfolioUrl, p.githubUrl
         FROM User u
         LEFT JOIN Person p ON u.id = p.userId
         WHERE u.id = ?`,

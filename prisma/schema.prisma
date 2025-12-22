@@ -55,6 +55,7 @@ model Person {
   phone           String?   @db.VarChar(50)
   linkedInUrl     String?   @db.VarChar(500)
   portfolioUrl    String?   @db.VarChar(500)
+  githubUrl       String?   @db.VarChar(500)
   
   // iCAA Membership convenience flags (synced from ICaaMembership)
   isICaaMember    Boolean   @default(false) @db.TinyInt
