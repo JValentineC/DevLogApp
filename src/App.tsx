@@ -10,6 +10,7 @@ import Profile from "./components/Profile";
 import UserList from "./components/UserList";
 import AdminUserManagement from "./components/AdminUserManagement";
 import Engagement from "./components/Engagement";
+import ErrorBoundary from "./components/ErrorBoundary";
 import { type DevLogEntry } from "./lib/api";
 
 interface User {
@@ -95,11 +96,15 @@ function App() {
 
   // Show landing page if not logged in
   if (!user) {
-    return <Landing onLoginSuccess={handleLoginSuccess} />;
+    return (
+      <ErrorBoundary>
+        <Landing onLoginSuccess={handleLoginSuccess} />
+      </ErrorBoundary>
+    );
   }
 
   return (
-    <>
+    <ErrorBoundary>
       {/* VSCode-style menu bar at the top */}
       <VSCodeMenuBar
         user={user}
@@ -400,7 +405,7 @@ function App() {
           onClose={() => setShowLogin(false)}
         />
       )}
-    </>
+    </ErrorBoundary>
   );
 }
 

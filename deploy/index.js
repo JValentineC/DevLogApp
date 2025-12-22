@@ -938,7 +938,11 @@ app.put(
       }
 
       // Handle social links (Person table update/insert)
-      if (linkedInUrl !== undefined || portfolioUrl !== undefined || githubUrl !== undefined) {
+      if (
+        linkedInUrl !== undefined ||
+        portfolioUrl !== undefined ||
+        githubUrl !== undefined
+      ) {
         // First, check if a Person record exists for this user
         const [existingPersons] = await pool.execute(
           "SELECT id FROM Person WHERE userId = ?",
@@ -950,7 +954,12 @@ app.put(
           const personId = existingPersons[0].id;
           await pool.execute(
             "UPDATE Person SET linkedInUrl = ?, portfolioUrl = ?, githubUrl = ? WHERE id = ?",
-            [linkedInUrl || null, portfolioUrl || null, githubUrl || null, personId]
+            [
+              linkedInUrl || null,
+              portfolioUrl || null,
+              githubUrl || null,
+              personId,
+            ]
           );
         } else {
           // Create new Person record linked to this user
