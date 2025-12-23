@@ -152,11 +152,12 @@ const Profile: React.FC<ProfileProps> = ({ user, onProfileUpdate }) => {
           const data = await response.json();
           if (data.success && data.settings) {
             setProfileVisibility(data.settings.profileVisibility || "public");
-            setShowBioPublic(data.settings.showBioPublic ?? true);
+            // Convert to boolean explicitly (MySQL returns 1/0)
+            setShowBioPublic(Boolean(data.settings.showBioPublic ?? true));
             setTheme(data.settings.theme || "light");
-            setEmailNotifications(data.settings.emailNotifications ?? true);
-            setWeeklyDigest(data.settings.weeklyDigest ?? true);
-            setMarketingEmails(data.settings.marketingEmails ?? false);
+            setEmailNotifications(Boolean(data.settings.emailNotifications ?? true));
+            setWeeklyDigest(Boolean(data.settings.weeklyDigest ?? true));
+            setMarketingEmails(Boolean(data.settings.marketingEmails ?? false));
           }
         }
       } catch (error) {
