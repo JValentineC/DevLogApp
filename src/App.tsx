@@ -1,21 +1,23 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { Routes, Route } from "react-router-dom";
 import VSCodeMenuBar from "./components/VSCodeMenuBar";
-import EntryLogger from "./components/EntryLogger";
-import EditLogger from "./components/EditLogger";
-import DevLogList from "./components/DevLogList";
-import About from "./components/About";
-import Login from "./components/Login";
-import Landing from "./components/Landing";
-import Profile from "./components/Profile";
-import UserList from "./components/UserList";
-import AdminUserManagement from "./components/AdminUserManagement";
-import Engagement from "./components/Engagement";
 import ErrorBoundary from "./components/ErrorBoundary";
-import ForgotPassword from "./components/ForgotPassword";
-import ResetPassword from "./components/ResetPassword";
-import DeveloperDashboard from "./components/DeveloperDashboard";
 import { type DevLogEntry } from "./lib/api";
+
+// Lazy load route components for better code-splitting
+const EntryLogger = lazy(() => import("./components/EntryLogger"));
+const EditLogger = lazy(() => import("./components/EditLogger"));
+const DevLogList = lazy(() => import("./components/DevLogList"));
+const About = lazy(() => import("./components/About"));
+const Login = lazy(() => import("./components/Login"));
+const Landing = lazy(() => import("./components/Landing"));
+const Profile = lazy(() => import("./components/Profile"));
+const UserList = lazy(() => import("./components/UserList"));
+const AdminUserManagement = lazy(() => import("./components/AdminUserManagement"));
+const Engagement = lazy(() => import("./components/Engagement"));
+const ForgotPassword = lazy(() => import("./components/ForgotPassword"));
+const ResetPassword = lazy(() => import("./components/ResetPassword"));
+const DeveloperDashboard = lazy(() => import("./components/DeveloperDashboard"));
 
 interface User {
   id: number;
@@ -130,53 +132,59 @@ function App() {
         <div className="drawer-content flex flex-col">
           {/* Page content */}
           <div className="flex-1 p-4">
-            {currentPage === "logs" ? (
-              <>
-                {user || selectedUserId ? (
-                  <>
-                    {selectedUserId && !user && (
-                      <button
-                        onClick={handleBackToUserList}
-                        className="btn btn-secondary mb-4"
-                      >
-                        ← Back to Users
-                      </button>
-                    )}
-                    <DevLogList
-                      key={refreshKey}
-                      userId={selectedUserId || user?.id}
-                      username={
-                        selectedUsername || user?.name || user?.username
-                      }
-                      user={user}
-                      onEdit={handleEdit}
-                      onRefresh={() => setRefreshKey((prev) => prev + 1)}
-                    />
-                  </>
-                ) : (
-                  <UserList onUserSelect={handleUserSelect} />
-                )}
-              </>
-            ) : currentPage === "profile" && user ? (
-              <Profile user={user} onProfileUpdate={handleProfileUpdate} />
-            ) : currentPage === "developer" &&
-              user &&
-              user.role === "super_admin" ? (
-              <DeveloperDashboard />
-            ) : currentPage === "admin" &&
-              user &&
-              user.role === "super_admin" ? (
-              <AdminUserManagement />
-            ) : currentPage === "engagement" &&
-              user &&
-              (user.role === "admin" || user.role === "super_admin") ? (
-              <Engagement />
-            ) : (
-              <About
-                user={user}
-                onNavigateToProfile={() => setCurrentPage("profile")}
-              />
-            )}
+            <Suspense fallback={
+              <div className="flex items-center justify-center h-64">
+                <span className="loading loading-spinner loading-lg"></span>
+              </div>
+            }>
+              {currentPage === "logs" ? (
+                <>
+                  {user || selectedUserId ? (
+                    <>
+                      {selectedUserId && !user && (
+                        <button
+                          onClick={handleBackToUserList}
+                          className="btn btn-secondary mb-4"
+                        >
+                          ← Back to Users
+                        </button>
+                      )}
+                      <DevLogList
+                        key={refreshKey}
+                        userId={selectedUserId || user?.id}
+                        username={
+                          selectedUsername || user?.name || user?.username
+                        }
+                        user={user}
+                        onEdit={handleEdit}
+                        onRefresh={() => setRefreshKey((prev) => prev + 1)}
+                      />
+                    </>
+                  ) : (
+                    <UserList onUserSelect={handleUserSelect} />
+                  )}
+                </>
+              ) : currentPage === "profile" && user ? (
+                <Profile user={user} onProfileUpdate={handleProfileUpdate} />
+              ) : currentPage === "developer" &&
+                user &&
+                user.role === "super_admin" ? (
+                <DeveloperDashboard />
+              ) : currentPage === "admin" &&
+                user &&
+                user.role === "super_admin" ? (
+                <AdminUserManagement />
+              ) : currentPage === "engagement" &&
+                user &&
+                (user.role === "admin" || user.role === "super_admin") ? (
+                <Engagement />
+              ) : (
+                <About
+                  user={user}
+                  onNavigateToProfile={() => setCurrentPage("profile")}
+                />
+              )}
+            </Suspense>
           </div>
         </div>
 
@@ -412,11 +420,13 @@ function App() {
               </button>
             </form>
             <h3 className="font-bold text-lg mb-4">New Entry</h3>
-            <EntryLogger
-              onSubmit={() => {
-                handleEntryCreated();
-              }}
-            />
+            <Suspense fallback={<span className="loading loading-spinner loading-lg"></span>}>
+              <EntryLogger
+                onSubmit={() => {
+                  handleEntryCreated();
+                }}
+              />
+            </Suspense>
           </div>
           <form method="dialog" className="modal-backdrop">
             <button onClick={() => setShowLogger(false)}>close</button>
@@ -437,11 +447,13 @@ function App() {
               </button>
             </form>
             <h3 className="font-bold text-lg mb-4">Edit Entry</h3>
-            <EditLogger
-              entry={editingEntry}
-              onSuccess={handleEditSuccess}
-              onCancel={() => setEditingEntry(null)}
-            />
+            <Suspense fallback={<span className="loading loading-spinner loading-lg"></span>}>
+              <EditLogger
+                entry={editingEntry}
+                onSuccess={handleEditSuccess}
+                onCancel={() => setEditingEntry(null)}
+              />
+            </Suspense>
           </div>
           <form method="dialog" className="modal-backdrop">
             <button onClick={() => setEditingEntry(null)}>close</button>
@@ -451,10 +463,12 @@ function App() {
 
       {/* Login Modal */}
       {showLogin && (
-        <Login
-          onLoginSuccess={handleLoginSuccess}
-          onClose={() => setShowLogin(false)}
-        />
+        <Suspense fallback={<span className="loading loading-spinner loading-lg"></span>}>
+          <Login
+            onLoginSuccess={handleLoginSuccess}
+            onClose={() => setShowLogin(false)}
+          />
+        </Suspense>
       )}
     </ErrorBoundary>
   );
