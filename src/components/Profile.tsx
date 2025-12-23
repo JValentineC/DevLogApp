@@ -48,6 +48,16 @@ const Profile: React.FC<ProfileProps> = ({ user, onProfileUpdate }) => {
   const [showBackupCodes, setShowBackupCodes] = useState(false);
   // Photo upload state
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  // Privacy & Notification Settings
+  const [profileVisibility, setProfileVisibility] = useState<
+    "public" | "private"
+  >("public");
+  const [showBioPublic, setShowBioPublic] = useState(true);
+  const [theme, setTheme] = useState<"light" | "dark" | "system">("light");
+  const [emailNotifications, setEmailNotifications] = useState(true);
+  const [weeklyDigest, setWeeklyDigest] = useState(true);
+  const [marketingEmails, setMarketingEmails] = useState(false);
+  const [settingsLoading, setSettingsLoading] = useState(false);
 
   // Fetch user stats (post count, streak)
   useEffect(() => {
@@ -119,6 +129,41 @@ const Profile: React.FC<ProfileProps> = ({ user, onProfileUpdate }) => {
       }
     }
     fetchSocialLinks();
+  }, [user.id]);
+
+  // Fetch privacy and notification settings
+  useEffect(() => {
+    async function fetchSettings() {
+      try {
+        const API_BASE_URL =
+          import.meta.env.VITE_API_URL || "http://localhost:3001/api";
+        const authToken = localStorage.getItem("authToken");
+
+        const response = await fetch(
+          `${API_BASE_URL}/users/${user.id}/settings`,
+          {
+            headers: {
+              Authorization: `Bearer ${authToken}`,
+            },
+          }
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.settings) {
+            setProfileVisibility(data.settings.profileVisibility || "public");
+            setShowBioPublic(data.settings.showBioPublic ?? true);
+            setTheme(data.settings.theme || "light");
+            setEmailNotifications(data.settings.emailNotifications ?? true);
+            setWeeklyDigest(data.settings.weeklyDigest ?? true);
+            setMarketingEmails(data.settings.marketingEmails ?? false);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching settings:", error);
+      }
+    }
+    fetchSettings();
   }, [user.id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -197,6 +242,61 @@ const Profile: React.FC<ProfileProps> = ({ user, onProfileUpdate }) => {
       setError(err instanceof Error ? err.message : "Failed to update profile");
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Handle settings update (separate from profile update)
+  const handleSettingsUpdate = async () => {
+    setError("");
+    setSuccess("");
+    setSettingsLoading(true);
+
+    try {
+      const API_BASE_URL =
+        import.meta.env.VITE_API_URL || "http://localhost:3001/api";
+      const authToken = localStorage.getItem("authToken");
+
+      const settingsData = {
+        profileVisibility,
+        showBioPublic,
+        theme,
+        emailNotifications,
+        weeklyDigest,
+        marketingEmails,
+      };
+
+      const response = await fetch(
+        `${API_BASE_URL}/users/${user.id}/settings`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${authToken}`,
+          },
+          body: JSON.stringify(settingsData),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to update settings");
+      }
+
+      if (data.success) {
+        setSuccess("Settings updated successfully!");
+        // Auto-dismiss success message after 3 seconds
+        setTimeout(() => setSuccess(""), 3000);
+      } else {
+        throw new Error("Invalid response from server");
+      }
+    } catch (err) {
+      console.error("Settings update error:", err);
+      setError(
+        err instanceof Error ? err.message : "Failed to update settings"
+      );
+    } finally {
+      setSettingsLoading(false);
     }
   };
 
@@ -551,6 +651,166 @@ const Profile: React.FC<ProfileProps> = ({ user, onProfileUpdate }) => {
                     onChange={(e) => setGithubUrl(e.target.value)}
                     placeholder="https://github.com/yourusername"
                   />
+                </div>
+              </div>
+            </div>
+
+            <div className="form-card">
+              <div className="form-card-header">
+                <h3 className="form-card-title">Privacy & Notifications</h3>
+                <p className="form-card-description">
+                  Control your profile visibility and notification preferences
+                </p>
+              </div>
+
+              <div className="form-card-body">
+                {/* Privacy Settings */}
+                <div className="settings-section">
+                  <h4 className="settings-section-title">Privacy</h4>
+
+                  <div className="form-group-toggle">
+                    <div className="toggle-content">
+                      <label htmlFor="profileVisibility">
+                        Profile Visibility
+                      </label>
+                      <small>
+                        Control who can see your profile{" "}
+                        <span
+                          className={`badge ${
+                            profileVisibility === "public"
+                              ? "badge-success"
+                              : "badge-secondary"
+                          }`}
+                        >
+                          {profileVisibility}
+                        </span>
+                      </small>
+                    </div>
+                    <select
+                      id="profileVisibility"
+                      value={profileVisibility}
+                      onChange={(e) =>
+                        setProfileVisibility(
+                          e.target.value as "public" | "private"
+                        )
+                      }
+                      className="form-select"
+                    >
+                      <option value="public">Public</option>
+                      <option value="private">Private</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group-toggle">
+                    <div className="toggle-content">
+                      <label htmlFor="showBioPublic">Show Bio Publicly</label>
+                      <small>Display your bio on your public profile</small>
+                    </div>
+                    <label className="toggle-switch">
+                      <input
+                        type="checkbox"
+                        id="showBioPublic"
+                        checked={showBioPublic}
+                        onChange={(e) => setShowBioPublic(e.target.checked)}
+                      />
+                      <span className="toggle-slider"></span>
+                    </label>
+                  </div>
+
+                  <div className="form-group-toggle">
+                    <div className="toggle-content">
+                      <label htmlFor="theme">Theme Preference</label>
+                      <small>Choose your preferred color theme</small>
+                    </div>
+                    <select
+                      id="theme"
+                      value={theme}
+                      onChange={(e) =>
+                        setTheme(e.target.value as "light" | "dark" | "system")
+                      }
+                      className="form-select"
+                    >
+                      <option value="light">Light</option>
+                      <option value="dark">Dark</option>
+                      <option value="system">System</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div
+                  style={{ borderTop: "1px solid #e2e8f0", margin: "1.5rem 0" }}
+                ></div>
+
+                {/* Notification Settings */}
+                <div className="settings-section">
+                  <h4 className="settings-section-title">Notifications</h4>
+
+                  <div className="form-group-toggle">
+                    <div className="toggle-content">
+                      <label htmlFor="emailNotifications">
+                        Email Notifications
+                      </label>
+                      <small>
+                        Receive notifications about your account activity
+                      </small>
+                    </div>
+                    <label className="toggle-switch">
+                      <input
+                        type="checkbox"
+                        id="emailNotifications"
+                        checked={emailNotifications}
+                        onChange={(e) =>
+                          setEmailNotifications(e.target.checked)
+                        }
+                      />
+                      <span className="toggle-slider"></span>
+                    </label>
+                  </div>
+
+                  <div className="form-group-toggle">
+                    <div className="toggle-content">
+                      <label htmlFor="weeklyDigest">Weekly Digest</label>
+                      <small>Get a summary of your activity every week</small>
+                    </div>
+                    <label className="toggle-switch">
+                      <input
+                        type="checkbox"
+                        id="weeklyDigest"
+                        checked={weeklyDigest}
+                        onChange={(e) => setWeeklyDigest(e.target.checked)}
+                        disabled={!emailNotifications}
+                      />
+                      <span className="toggle-slider"></span>
+                    </label>
+                  </div>
+
+                  <div className="form-group-toggle">
+                    <div className="toggle-content">
+                      <label htmlFor="marketingEmails">Marketing Emails</label>
+                      <small>Receive updates about new features and tips</small>
+                    </div>
+                    <label className="toggle-switch">
+                      <input
+                        type="checkbox"
+                        id="marketingEmails"
+                        checked={marketingEmails}
+                        onChange={(e) => setMarketingEmails(e.target.checked)}
+                        disabled={!emailNotifications}
+                      />
+                      <span className="toggle-slider"></span>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="form-actions" style={{ marginTop: "1.5rem" }}>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={handleSettingsUpdate}
+                    disabled={settingsLoading}
+                  >
+                    {settingsLoading ? "Saving..." : "Save Settings"}
+                  </button>
                 </div>
               </div>
             </div>

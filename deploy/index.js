@@ -94,6 +94,12 @@ const uploadLimiter = rateLimit({
   message: "Too many upload requests, please try again later.",
 });
 
+const settingsLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20, // Limit each IP to 20 settings updates per 15 minutes
+  message: "Too many settings updates, please try again later.",
+});
+
 app.use("/api/", limiter);
 
 // Middleware
@@ -1335,6 +1341,180 @@ app.post(
       res.status(500).json({
         success: false,
         error: errorMessage,
+      });
+    }
+  }
+);
+
+// GET /api/users/:id/settings - Get user privacy and notification settings (Protected)
+app.get(
+  "/api/users/:id/settings",
+  authenticateToken,
+  authorizeOwner,
+  settingsLimiter,
+  async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+
+      const [users] = await pool.execute(
+        `SELECT 
+          profileVisibility, 
+          showBioPublic, 
+          theme, 
+          emailNotifications, 
+          weeklyDigest, 
+          marketingEmails
+        FROM User 
+        WHERE id = ?`,
+        [userId]
+      );
+
+      if (users.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: "User not found",
+        });
+      }
+
+      res.json({
+        success: true,
+        settings: users[0],
+      });
+    } catch (error) {
+      console.error("Error fetching user settings:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to fetch settings",
+        message: error.message,
+      });
+    }
+  }
+);
+
+// PUT /api/users/:id/settings - Update user privacy and notification settings (Protected)
+app.put(
+  "/api/users/:id/settings",
+  authenticateToken,
+  authorizeOwner,
+  settingsLimiter,
+  async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      const {
+        profileVisibility,
+        showBioPublic,
+        theme,
+        emailNotifications,
+        weeklyDigest,
+        marketingEmails,
+      } = req.body;
+
+      // Validate profileVisibility enum
+      if (
+        profileVisibility &&
+        !["public", "private"].includes(profileVisibility)
+      ) {
+        return res.status(400).json({
+          success: false,
+          error: "profileVisibility must be 'public' or 'private'",
+        });
+      }
+
+      // Validate theme
+      if (theme && !["light", "dark", "system"].includes(theme)) {
+        return res.status(400).json({
+          success: false,
+          error: "theme must be 'light', 'dark', or 'system'",
+        });
+      }
+
+      // Validate boolean fields
+      const booleanFields = {
+        showBioPublic,
+        emailNotifications,
+        weeklyDigest,
+        marketingEmails,
+      };
+
+      for (const [key, value] of Object.entries(booleanFields)) {
+        if (value !== undefined && typeof value !== "boolean") {
+          return res.status(400).json({
+            success: false,
+            error: `${key} must be a boolean value`,
+          });
+        }
+      }
+
+      // Build dynamic update query based on provided fields
+      const updates = [];
+      const values = [];
+
+      if (profileVisibility !== undefined) {
+        updates.push("profileVisibility = ?");
+        values.push(profileVisibility);
+      }
+      if (showBioPublic !== undefined) {
+        updates.push("showBioPublic = ?");
+        values.push(showBioPublic);
+      }
+      if (theme !== undefined) {
+        updates.push("theme = ?");
+        values.push(theme);
+      }
+      if (emailNotifications !== undefined) {
+        updates.push("emailNotifications = ?");
+        values.push(emailNotifications);
+      }
+      if (weeklyDigest !== undefined) {
+        updates.push("weeklyDigest = ?");
+        values.push(weeklyDigest);
+      }
+      if (marketingEmails !== undefined) {
+        updates.push("marketingEmails = ?");
+        values.push(marketingEmails);
+      }
+
+      if (updates.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: "No settings provided to update",
+        });
+      }
+
+      // Add userId to values array for WHERE clause
+      values.push(userId);
+
+      // Execute update
+      await pool.execute(
+        `UPDATE User SET ${updates.join(", ")} WHERE id = ?`,
+        values
+      );
+
+      // Fetch updated settings
+      const [updatedUsers] = await pool.execute(
+        `SELECT 
+          profileVisibility, 
+          showBioPublic, 
+          theme, 
+          emailNotifications, 
+          weeklyDigest, 
+          marketingEmails
+        FROM User 
+        WHERE id = ?`,
+        [userId]
+      );
+
+      res.json({
+        success: true,
+        settings: updatedUsers[0],
+        message: "Settings updated successfully",
+      });
+    } catch (error) {
+      console.error("Error updating user settings:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to update settings",
+        message: error.message,
       });
     }
   }
