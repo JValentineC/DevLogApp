@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Routes, Route } from "react-router-dom";
 import VSCodeMenuBar from "./components/VSCodeMenuBar";
 import EntryLogger from "./components/EntryLogger";
 import EditLogger from "./components/EditLogger";
@@ -11,6 +12,9 @@ import UserList from "./components/UserList";
 import AdminUserManagement from "./components/AdminUserManagement";
 import Engagement from "./components/Engagement";
 import ErrorBoundary from "./components/ErrorBoundary";
+import ForgotPassword from "./components/ForgotPassword";
+import ResetPassword from "./components/ResetPassword";
+import DeveloperDashboard from "./components/DeveloperDashboard";
 import { type DevLogEntry } from "./lib/api";
 
 interface User {
@@ -28,7 +32,7 @@ function App() {
   const [showLogin, setShowLogin] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [currentPage, setCurrentPage] = useState<
-    "home" | "logs" | "profile" | "admin" | "engagement"
+    "home" | "logs" | "profile" | "admin" | "engagement" | "developer"
   >("home");
   const [user, setUser] = useState<User | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
@@ -98,7 +102,14 @@ function App() {
   if (!user) {
     return (
       <ErrorBoundary>
-        <Landing onLoginSuccess={handleLoginSuccess} />
+        <Routes>
+          <Route
+            path="/"
+            element={<Landing onLoginSuccess={handleLoginSuccess} />}
+          />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+        </Routes>
       </ErrorBoundary>
     );
   }
@@ -148,6 +159,10 @@ function App() {
               </>
             ) : currentPage === "profile" && user ? (
               <Profile user={user} onProfileUpdate={handleProfileUpdate} />
+            ) : currentPage === "developer" &&
+              user &&
+              user.role === "super_admin" ? (
+              <DeveloperDashboard />
             ) : currentPage === "admin" &&
               user &&
               user.role === "super_admin" ? (
@@ -313,6 +328,42 @@ function App() {
                     </a>
                   </li>
                 )}
+
+              {/* Developer Dashboard - Super Admin Only */}
+              {user && user.role === "super_admin" && (
+                <li>
+                  <a
+                    onClick={() => setCurrentPage("developer")}
+                    className={`is-drawer-close:tooltip is-drawer-close:tooltip-right ${
+                      currentPage === "developer" ? "active" : ""
+                    }`}
+                    data-tip="Developer Dashboard"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      strokeLinejoin="round"
+                      strokeLinecap="round"
+                      strokeWidth="2"
+                      fill="none"
+                      stroke="currentColor"
+                      className="size-5"
+                    >
+                      <path d="M16 18l2-2-2-2"></path>
+                      <path d="M8 6l-2 2 2 2"></path>
+                      <rect
+                        x="3"
+                        y="3"
+                        width="18"
+                        height="18"
+                        rx="2"
+                        ry="2"
+                      ></rect>
+                    </svg>
+                    <span className="is-drawer-close:hidden">Developer</span>
+                  </a>
+                </li>
+              )}
 
               {/* Divider */}
               <li className="mt-auto"></li>

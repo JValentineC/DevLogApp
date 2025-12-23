@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Link } from "react-router-dom";
 import TwoFactorVerify from "./TwoFactorVerify";
 import "./Login.css";
 
@@ -185,6 +186,10 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onClose }) => {
               required
               autoComplete="current-password"
             />
+          </div>
+
+          <div className="forgot-password-link">
+            <Link to="/forgot-password">Forgot your password?</Link>
           </div>
 
           <div className="login-actions">

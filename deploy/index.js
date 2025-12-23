@@ -8,6 +8,8 @@ import rateLimit from "express-rate-limit";
 import speakeasy from "speakeasy";
 import jwt from "jsonwebtoken";
 import multer from "multer";
+import crypto from "crypto";
+import nodemailer from "nodemailer";
 import { v2 as cloudinary } from "cloudinary";
 import {
   authenticateToken,
@@ -476,6 +478,199 @@ app.get("/api/auth/check-email/:email", async (req, res) => {
       success: false,
       error: "Failed to verify email",
       message: error.message,
+    });
+  }
+});
+
+// POST /api/auth/forgot-password - Request password reset
+app.post("/api/auth/forgot-password", authLimiter, async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        error: "Email is required",
+      });
+    }
+
+    // Find user by email (check User table first, then Person table)
+    let [users] = await pool.execute(
+      "SELECT id, email, username FROM User WHERE LOWER(email) = LOWER(?)",
+      [email]
+    );
+
+    // If not found in User table, check Person table (orgEmail and personalEmail)
+    if (users.length === 0) {
+      const [persons] = await pool.execute(
+        `SELECT u.id, u.email, u.username 
+         FROM Person p 
+         JOIN User u ON p.userId = u.id 
+         WHERE LOWER(p.orgEmail) = LOWER(?) OR LOWER(p.personalEmail) = LOWER(?)`,
+        [email, email]
+      );
+      users = persons;
+    }
+
+    // Always return success even if email doesn't exist (security best practice)
+    if (users.length === 0) {
+      return res.json({
+        success: true,
+        message: "If the email exists, a password reset link has been sent",
+      });
+    }
+
+    const user = users[0];
+
+    // Generate reset token (secure random string)
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    const resetTokenExpiry = new Date(Date.now() + 3600000); // 1 hour from now
+
+    // Save token to database
+    await pool.execute(
+      "UPDATE User SET resetToken = ?, resetTokenExpiry = ? WHERE id = ?",
+      [resetToken, resetTokenExpiry, user.id]
+    );
+
+    // Create reset URL
+    const resetUrl = `${
+      process.env.FRONTEND_URL || "https://jvalentinec.github.io/DevLogApp"
+    }/reset-password?token=${resetToken}`;
+
+    // Send email with reset link
+    try {
+      const transporter = nodemailer.createTransport({
+        host: process.env.EMAIL_HOST || "smtp.gmail.com",
+        port: parseInt(process.env.EMAIL_PORT) || 587,
+        secure: false, // true for 465, false for other ports
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASSWORD,
+        },
+      });
+
+      await transporter.sendMail({
+        from: `"DevLogs" <${process.env.EMAIL_USER}>`,
+        to: user.email,
+        subject: "DevLogs Password Reset Request",
+        html: `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <style>
+              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+              .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+              .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+              .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+              .button { display: inline-block; padding: 14px 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; font-weight: bold; }
+              .footer { text-align: center; margin-top: 20px; font-size: 12px; color: #888; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="header">
+                <h1>🔐 Password Reset Request</h1>
+              </div>
+              <div class="content">
+                <p>Hello,</p>
+                <p>You requested a password reset for your DevLogs account.</p>
+                <p>Click the button below to reset your password. This link is valid for <strong>1 hour</strong>:</p>
+                <center>
+                  <a href="${resetUrl}" class="button">Reset Password</a>
+                </center>
+                <p>Or copy and paste this link into your browser:</p>
+                <p style="background: #fff; padding: 10px; border-radius: 5px; word-break: break-all;">
+                  <a href="${resetUrl}">${resetUrl}</a>
+                </p>
+                <hr style="margin: 30px 0; border: none; border-top: 1px solid #ddd;">
+                <p><strong>Didn't request this?</strong></p>
+                <p>If you didn't request a password reset, please ignore this email. Your password will remain unchanged.</p>
+              </div>
+              <div class="footer">
+                <p>This is an automated message from DevLogs. Please do not reply to this email.</p>
+              </div>
+            </div>
+          </body>
+          </html>
+        `,
+      });
+
+      console.log(`Password reset email sent to ${user.email}`);
+    } catch (emailError) {
+      console.error("Error sending password reset email:", emailError);
+      // Log the URL as fallback
+      console.log(`Password reset link for ${user.email}: ${resetUrl}`);
+    }
+
+    res.json({
+      success: true,
+      message: "If the email exists, a password reset link has been sent",
+      // Only include token in development for testing
+      ...(process.env.NODE_ENV === "development" && { resetToken, resetUrl }),
+    });
+  } catch (error) {
+    console.error("Error in forgot-password:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to process password reset request",
+    });
+  }
+});
+
+// POST /api/auth/reset-password - Reset password with token
+app.post("/api/auth/reset-password", authLimiter, async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        error: "Token and new password are required",
+      });
+    }
+
+    // Validate password strength
+    if (newPassword.length < 8) {
+      return res.status(400).json({
+        success: false,
+        error: "Password must be at least 8 characters long",
+      });
+    }
+
+    // Find user with valid reset token
+    const [users] = await pool.execute(
+      "SELECT id, email, username FROM User WHERE resetToken = ? AND resetTokenExpiry > NOW()",
+      [token]
+    );
+
+    if (users.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid or expired reset token",
+      });
+    }
+
+    const user = users[0];
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Update password and clear reset token
+    await pool.execute(
+      "UPDATE User SET password = ?, resetToken = NULL, resetTokenExpiry = NULL WHERE id = ?",
+      [hashedPassword, user.id]
+    );
+
+    res.json({
+      success: true,
+      message:
+        "Password reset successful. You can now log in with your new password.",
+    });
+  } catch (error) {
+    console.error("Error in reset-password:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to reset password",
     });
   }
 });
@@ -1999,6 +2194,255 @@ app.get(
         error: "Failed to fetch cycles",
         message: error.message,
       });
+    }
+  }
+);
+
+// ==================== DEVELOPER DASHBOARD ENDPOINTS ====================
+
+// Get server logs (super_admin only)
+app.get(
+  "/api/admin/logs",
+  authenticateToken,
+  requireRole("super_admin"),
+  async (req, res) => {
+    try {
+      const fs = await import("fs/promises");
+      const logPath = "/tmp/devlogs-api.log";
+
+      try {
+        const logContent = await fs.readFile(logPath, "utf-8");
+        const lines = logContent.split("\n").filter(Boolean);
+        const recentLines = lines.slice(-100); // Last 100 lines
+
+        const logs = recentLines.map((line) => {
+          let level = "info";
+          if (line.includes("ERROR") || line.includes("Error")) level = "error";
+          else if (line.includes("WARN") || line.includes("Warning"))
+            level = "warn";
+
+          return {
+            timestamp: new Date().toISOString(),
+            message: line,
+            level,
+          };
+        });
+
+        res.json({ logs });
+      } catch (fileError) {
+        res.json({
+          logs: [
+            {
+              timestamp: new Date().toISOString(),
+              message: "No logs available",
+              level: "info",
+            },
+          ],
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching logs:", error);
+      res.status(500).json({ error: "Failed to fetch logs" });
+    }
+  }
+);
+
+// Get database table statistics
+app.get(
+  "/api/admin/table-stats",
+  authenticateToken,
+  requireRole("super_admin"),
+  async (req, res) => {
+    try {
+      const [tables] = await pool.query(`
+        SELECT 
+          table_name AS tableName,
+          table_rows AS rowCount,
+          ROUND(((data_length + index_length) / 1024 / 1024), 2) AS dataSize
+        FROM information_schema.tables
+        WHERE table_schema = 'devlogs'
+        ORDER BY table_name
+      `);
+
+      const stats = tables.map((t) => ({
+        tableName: t.tableName,
+        rowCount: parseInt(t.rowCount) || 0,
+        dataSize: `${t.dataSize} MB`,
+      }));
+
+      res.json({ stats });
+    } catch (error) {
+      console.error("Error fetching table stats:", error);
+      res.status(500).json({ error: "Failed to fetch table stats" });
+    }
+  }
+);
+
+// Get user analytics
+app.get(
+  "/api/admin/user-stats",
+  authenticateToken,
+  requireRole("super_admin"),
+  async (req, res) => {
+    try {
+      const [totalUsers] = await pool.query(
+        "SELECT COUNT(*) as count FROM User"
+      );
+      const [activeUsers] = await pool.query(
+        "SELECT COUNT(*) as count FROM User WHERE lastLoginAt >= DATE_SUB(NOW(), INTERVAL 7 DAY)"
+      );
+      const [adminUsers] = await pool.query(
+        "SELECT COUNT(*) as count FROM User WHERE role IN ('admin', 'super_admin')"
+      );
+      const [recentSignups] = await pool.query(
+        "SELECT COUNT(*) as count FROM User WHERE createdAt >= DATE_SUB(NOW(), INTERVAL 30 DAY)"
+      );
+
+      res.json({
+        totalUsers: totalUsers[0].count,
+        activeUsers: activeUsers[0].count,
+        adminUsers: adminUsers[0].count,
+        recentSignups: recentSignups[0].count,
+      });
+    } catch (error) {
+      console.error("Error fetching user stats:", error);
+      res.status(500).json({ error: "Failed to fetch user stats" });
+    }
+  }
+);
+
+// Run predefined query
+app.get(
+  "/api/admin/query/:queryId",
+  authenticateToken,
+  requireRole("super_admin"),
+  async (req, res) => {
+    try {
+      const { queryId } = req.params;
+      let query,
+        params = [];
+
+      switch (queryId) {
+        case "recent-users":
+          query =
+            "SELECT id, username, email, createdAt FROM User WHERE createdAt >= DATE_SUB(NOW(), INTERVAL 7 DAY) ORDER BY createdAt DESC LIMIT 50";
+          break;
+        case "active-sessions":
+          query =
+            "SELECT id, username, email, lastLoginAt FROM User WHERE lastLoginAt >= CURDATE() ORDER BY lastLoginAt DESC LIMIT 50";
+          break;
+        case "popular-tags":
+          query =
+            "SELECT tags, COUNT(*) as count FROM DevLog WHERE tags IS NOT NULL GROUP BY tags ORDER BY count DESC LIMIT 20";
+          break;
+        case "user-activity":
+          query =
+            "SELECT u.username, COUNT(d.id) as logCount, MAX(d.createdAt) as lastLog FROM User u LEFT JOIN DevLog d ON u.id = d.userId GROUP BY u.id ORDER BY logCount DESC LIMIT 50";
+          break;
+        case "error-logs":
+          query =
+            "SELECT * FROM DevLog WHERE content LIKE '%error%' OR content LIKE '%ERROR%' ORDER BY createdAt DESC LIMIT 50";
+          break;
+        default:
+          return res.status(400).json({ error: "Invalid query ID" });
+      }
+
+      const [results] = await pool.query(query, params);
+      res.json({ queryId, results });
+    } catch (error) {
+      console.error("Error running query:", error);
+      res.status(500).json({ error: "Failed to run query" });
+    }
+  }
+);
+
+// Restart server
+app.post(
+  "/api/admin/restart",
+  authenticateToken,
+  requireRole("super_admin"),
+  async (req, res) => {
+    try {
+      res.json({ success: true, message: "Server restart initiated" });
+
+      // Trigger daemon restart by touching the index.js file
+      setTimeout(async () => {
+        const fs = await import("fs/promises");
+        const now = new Date();
+        await fs.utimes("/home/public/index.js", now, now);
+      }, 1000);
+    } catch (error) {
+      console.error("Error restarting server:", error);
+      res.status(500).json({ error: "Failed to restart server" });
+    }
+  }
+);
+
+// Export data as CSV
+app.get(
+  "/api/admin/export/:type",
+  authenticateToken,
+  requireRole("super_admin"),
+  async (req, res) => {
+    try {
+      const { type } = req.params;
+      let query, filename;
+
+      switch (type) {
+        case "users":
+          query =
+            "SELECT id, username, email, firstName, lastName, role, createdAt, lastLoginAt FROM User";
+          filename = "users.csv";
+          break;
+        case "devlogs":
+          query =
+            "SELECT id, userId, title, content, tags, isPublished, createdAt FROM DevLog";
+          filename = "devlogs.csv";
+          break;
+        case "persons":
+          query = "SELECT * FROM Person";
+          filename = "persons.csv";
+          break;
+        default:
+          return res.status(400).json({ error: "Invalid export type" });
+      }
+
+      const [results] = await pool.query(query);
+
+      if (results.length === 0) {
+        return res.status(404).json({ error: "No data to export" });
+      }
+
+      // Convert to CSV
+      const headers = Object.keys(results[0]);
+      const csv = [
+        headers.join(","),
+        ...results.map((row) =>
+          headers
+            .map((header) => {
+              const value = row[header];
+              if (value === null) return "";
+              if (
+                typeof value === "string" &&
+                (value.includes(",") || value.includes('"'))
+              ) {
+                return `"${value.replace(/"/g, '""')}"`;
+              }
+              return value;
+            })
+            .join(",")
+        ),
+      ].join("\n");
+
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${filename}"`
+      );
+      res.send(csv);
+    } catch (error) {
+      console.error("Error exporting data:", error);
+      res.status(500).json({ error: "Failed to export data" });
     }
   }
 );

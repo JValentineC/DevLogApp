@@ -16,9 +16,11 @@ model User {
   lastName     String   @db.VarChar(100)
   
   // Authentication
-  email        String   @unique @db.VarChar(255)
-  password     String   @db.VarChar(255)
-  passwordHint String?  @db.VarChar(255)
+  email            String    @unique @db.VarChar(255)
+  password         String    @db.VarChar(255)
+  passwordHint     String?   @db.VarChar(255)
+  resetToken       String?   @db.VarChar(255)
+  resetTokenExpiry DateTime?
   
   // Profile
   username     String   @unique @db.VarChar(50)
