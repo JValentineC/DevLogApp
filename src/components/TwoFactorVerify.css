@@ -11,10 +11,10 @@
 .user-badge {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  padding: 1rem;
-  background: var(--fallback-b2, oklch(var(--b2) / 1));
-  border-radius: 0.5rem;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md);
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-lg);
 }
 
 .verify-form {

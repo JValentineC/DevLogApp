@@ -11,6 +11,8 @@ interface User {
   role?: "user" | "admin" | "super_admin";
 }
 
+type Theme = "light" | "dark";
+
 interface VSCodeMenuBarProps {
   user: User | null;
   onNavigate: (
@@ -28,6 +30,22 @@ const VSCodeMenuBar = ({
 }: VSCodeMenuBarProps) => {
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  // Theme management
+  const [theme, setTheme] = useState<Theme>(() => {
+    const savedTheme = localStorage.getItem("theme");
+    return (savedTheme === "dark" ? "dark" : "light") as Theme;
+  });
+
+  // Apply theme on mount and when it changes
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("theme", theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme((prevTheme) => (prevTheme === "light" ? "dark" : "light"));
+  };
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -146,7 +164,7 @@ const VSCodeMenuBar = ({
           </div>
         )}
 
-        {/* View / Feed */}
+        {/* View / Theme Toggle */}
         <div className="vscode-menubar__item">
           <button
             className={`vscode-menubar__button ${
@@ -160,10 +178,14 @@ const VSCodeMenuBar = ({
             <div className="vscode-menubar__dropdown">
               <div
                 className="vscode-menubar__dropdown-item"
-                onClick={() => handleMenuItemClick(() => onNavigate("logs"))}
+                onClick={() => handleMenuItemClick(toggleTheme)}
               >
-                <span>Feed (All Posts)</span>
-                <span className="vscode-menubar__shortcut">Ctrl+F</span>
+                <span>
+                  {theme === "light"
+                    ? "🌙 Switch to Dark Mode"
+                    : "☀️ Switch to Light Mode"}
+                </span>
+                <span className="vscode-menubar__shortcut">Ctrl+T</span>
               </div>
             </div>
           )}

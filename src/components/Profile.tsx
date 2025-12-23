@@ -155,7 +155,9 @@ const Profile: React.FC<ProfileProps> = ({ user, onProfileUpdate }) => {
             // Convert to boolean explicitly (MySQL returns 1/0)
             setShowBioPublic(Boolean(data.settings.showBioPublic ?? true));
             setTheme(data.settings.theme || "light");
-            setEmailNotifications(Boolean(data.settings.emailNotifications ?? true));
+            setEmailNotifications(
+              Boolean(data.settings.emailNotifications ?? true)
+            );
             setWeeklyDigest(Boolean(data.settings.weeklyDigest ?? true));
             setMarketingEmails(Boolean(data.settings.marketingEmails ?? false));
           }

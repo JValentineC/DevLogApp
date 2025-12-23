@@ -11,7 +11,7 @@
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  animation: fadeIn 0.2s ease;
+  animation: fadeIn var(--transition-fast) ease;
 }
 
 @keyframes fadeIn {
@@ -24,12 +24,12 @@
 }
 
 .login-modal {
-  background: white;
-  border-radius: 12px;
+  background: var(--color-bg-primary);
+  border-radius: var(--radius-lg);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   width: 90%;
   max-width: 450px;
-  animation: slideUp 0.3s ease;
+  animation: slideUp var(--transition-base) ease;
 }
 
 @keyframes slideUp {
@@ -47,12 +47,12 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 2rem 2rem 1rem;
-  border-bottom: 1px solid #adb5bd;
+  padding: var(--spacing-xl) var(--spacing-xl) var(--spacing-md);
+  border-bottom: 1px solid var(--color-border-focus);
 }
 
 .login-header h2 {
-  color: #343a40;
+  color: var(--color-text-primary);
   font-size: 1.75rem;
   margin: 0;
 }
@@ -61,7 +61,7 @@
   background: none;
   border: none;
   font-size: 2rem;
-  color: #495057;
+  color: var(--color-text-secondary);
   cursor: pointer;
   padding: 0;
   width: 32px;
@@ -69,35 +69,35 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
-  transition: all 0.2s;
+  border-radius: var(--radius-xs);
+  transition: all var(--transition-fast);
 }
 
 .close-btn:hover {
-  background: #dee2e6;
-  color: #343a40;
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
 }
 
 .login-form {
-  padding: 2rem;
+  padding: var(--spacing-xl);
 }
 
 .login-error {
-  background: #f8d7da;
-  color: #721c24;
-  padding: 1rem;
-  border-radius: 8px;
-  margin-bottom: 1.5rem;
-  border: 1px solid #f5c6cb;
+  background: var(--color-error-bg);
+  color: var(--color-error);
+  padding: var(--spacing-md);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--spacing-lg);
+  border: 1px solid var(--color-error-border);
 }
 
 .login-error.rate-limit-error {
-  background: #fff3cd;
+  background: var(--color-warning-bg);
   color: #856404;
-  border: 2px solid #ffc107;
+  border: 2px solid var(--color-warning);
   padding: 1.25rem;
   text-align: center;
-  animation: shake 0.5s ease;
+  animation: shake var(--transition-slow) ease;
 }
 
 @keyframes shake {
@@ -121,13 +121,13 @@
 }
 
 .form-group {
-  margin-bottom: 1.5rem;
+  margin-bottom: var(--spacing-lg);
 }
 
 .form-group label {
   display: block;
-  margin-bottom: 0.5rem;
-  color: #495057;
+  margin-bottom: var(--spacing-sm);
+  color: var(--color-text-secondary);
   font-weight: 600;
   font-size: 0.95rem;
 }
@@ -135,39 +135,45 @@
 .form-group input {
   width: 100%;
   padding: 0.875rem;
-  border: 2px solid #adb5bd;
-  border-radius: 8px;
+  border: 2px solid var(--color-border-focus);
+  border-radius: var(--radius-md);
   font-size: 1rem;
-  transition: all 0.2s;
+  transition: all var(--transition-fast);
   font-family: inherit;
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
 }
 
 .form-group input:focus {
   outline: none;
-  border-color: #dc3545;
+  border-color: var(--color-primary);
   box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.1);
 }
 
 .login-actions {
   display: flex;
-  gap: 1rem;
-  margin-top: 2rem;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-xl);
 }
 
 .btn {
   flex: 1;
-  padding: 0.875rem 1.5rem;
+  padding: 0.875rem var(--spacing-lg);
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all var(--transition-fast);
 }
 
 .btn-login {
-  background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
-  color: white;
+  background: linear-gradient(
+    135deg,
+    var(--color-primary) 0%,
+    var(--color-primary-hover) 100%
+  );
+  color: var(--color-text-inverse);
   box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
 }
 
@@ -187,21 +193,21 @@
 }
 
 .forgot-password-link a {
-  color: #667eea;
+  color: var(--color-secondary);
   text-decoration: none;
   font-size: 14px;
   font-weight: 500;
-  transition: color 0.3s ease;
+  transition: color var(--transition-base);
 }
 
 .forgot-password-link a:hover {
-  color: #764ba2;
+  color: var(--color-secondary-hover);
   text-decoration: underline;
 }
 
 .btn-cancel {
-  background: #6c757d;
-  color: white;
+  background: var(--color-border-focus);
+  color: var(--color-text-inverse);
 }
 
 .btn-cancel:hover:not(:disabled) {

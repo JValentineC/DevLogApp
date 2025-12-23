@@ -9,11 +9,11 @@
 }
 
 .codes-container {
-  background: var(--fallback-b2, oklch(var(--b2) / 1));
-  border: 2px solid var(--fallback-bc, oklch(var(--bc) / 0.2));
-  border-radius: 0.5rem;
-  padding: 2rem;
-  margin-bottom: 1.5rem;
+  background: var(--color-bg-secondary);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xl);
+  margin-bottom: var(--spacing-lg);
 }
 
 .codes-title {
@@ -25,9 +25,9 @@
 
 .codes-description {
   text-align: center;
-  color: var(--fallback-bc, oklch(var(--bc) / 0.7));
+  color: var(--color-text-secondary);
   font-size: 0.875rem;
-  margin-bottom: 1.5rem;
+  margin-bottom: var(--spacing-lg);
 }
 
 .codes-grid {
@@ -40,15 +40,15 @@
 .code-item {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem;
-  background: var(--fallback-b1, oklch(var(--b1) / 1));
-  border: 1px solid var(--fallback-bc, oklch(var(--bc) / 0.1));
-  border-radius: 0.375rem;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
 }
 
 .code-number {
-  color: var(--fallback-bc, oklch(var(--bc) / 0.5));
+  color: var(--color-text-tertiary);
   font-size: 0.75rem;
   font-weight: 600;
   min-width: 1.5rem;
@@ -59,14 +59,14 @@
   font-size: 0.875rem;
   font-weight: 600;
   letter-spacing: 0.05em;
-  color: var(--fallback-bc, oklch(var(--bc) / 1));
+  color: var(--color-text-primary);
 }
 
 .codes-stats {
   display: flex;
   justify-content: space-around;
-  padding-top: 1rem;
-  border-top: 1px dashed var(--fallback-bc, oklch(var(--bc) / 0.2));
+  padding-top: var(--spacing-md);
+  border-top: 1px dashed var(--color-border);
 }
 
 .stat {
@@ -78,7 +78,7 @@
 
 .stat-label {
   font-size: 0.75rem;
-  color: var(--fallback-bc, oklch(var(--bc) / 0.6));
+  color: var(--color-text-tertiary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }

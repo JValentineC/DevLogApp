@@ -13,25 +13,25 @@
 
 .engagement__header h2 {
   font-size: 2rem;
-  color: #b0b0b0;
+  color: var(--color-text-secondary);
   margin: 0;
 }
 
 .engagement__count {
   font-size: 1rem;
-  color: #b0b0b0;
+  color: var(--color-text-secondary);
   font-weight: normal;
 }
 
 .engagement__filters {
   display: grid;
   grid-template-columns: 2fr repeat(4, 1fr);
-  gap: 1rem;
-  margin-bottom: 2rem;
-  padding: 1.5rem;
-  background: rgba(255, 255, 255, 0.03);
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-xl);
+  padding: var(--spacing-lg);
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
 }
 
 .engagement__filter-group {
@@ -42,52 +42,52 @@
 
 .engagement__filter-group label {
   font-size: 0.875rem;
-  color: #a0a0a0;
+  color: var(--color-text-tertiary);
   font-weight: 500;
 }
 
 .engagement__search,
 .engagement__select {
-  padding: 0.75rem;
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 6px;
-  color: #b0b0b0;
+  padding: var(--spacing-sm);
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
   font-size: 0.95rem;
-  transition: all 0.2s;
+  transition: var(--transition-fast);
 }
 
 .engagement__search:focus,
 .engagement__select:focus {
   outline: none;
-  border-color: #4a9eff;
-  background: rgba(0, 0, 0, 0.4);
+  border-color: var(--color-secondary);
+  background: var(--color-bg-primary);
 }
 
 .engagement__clear-btn {
   align-self: flex-end;
-  padding: 0.75rem 1.5rem;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 6px;
-  color: #b0b0b0;
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
   font-size: 0.95rem;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: var(--transition-fast);
 }
 
 .engagement__clear-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.3);
+  background: var(--color-bg-tertiary);
+  border-color: var(--color-border-light);
 }
 
 .engagement__error {
-  padding: 1rem;
-  background: rgba(255, 68, 68, 0.1);
-  border: 1px solid rgba(255, 68, 68, 0.3);
-  border-radius: 6px;
-  color: #ff6b6b;
-  margin-bottom: 1.5rem;
+  padding: var(--spacing-md);
+  background: var(--color-danger-bg);
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-md);
+  color: var(--color-danger);
+  margin-bottom: var(--spacing-lg);
 }
 
 .engagement__loading {
@@ -99,9 +99,9 @@
 
 .engagement__table-wrapper {
   overflow-x: auto;
-  background: rgba(255, 255, 255, 0.02);
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
 }
 
 .engagement__table {
@@ -111,33 +111,33 @@
 }
 
 .engagement__table thead {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--color-bg-tertiary);
 }
 
 .engagement__table th {
-  padding: 1rem;
+  padding: var(--spacing-md);
   text-align: left;
   font-weight: 600;
-  color: #a0a0a0;
+  color: var(--color-text-tertiary);
   text-transform: uppercase;
   font-size: 0.85rem;
   letter-spacing: 0.5px;
-  border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 2px solid var(--color-border);
 }
 
 .engagement__table td {
-  padding: 1rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  color: #b0b0b0;
+  padding: var(--spacing-md);
+  border-bottom: 1px solid var(--color-border-light);
+  color: var(--color-text-secondary);
   vertical-align: top;
 }
 
 .engagement__table tbody tr {
-  transition: background 0.2s;
+  transition: var(--transition-fast);
 }
 
 .engagement__table tbody tr:hover {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--color-bg-tertiary);
 }
 
 .engagement__name {
@@ -151,22 +151,22 @@
 .person-linkedin {
   display: inline-block;
   font-size: 0.8rem;
-  color: #4a9eff;
+  color: var(--color-secondary);
   text-decoration: none;
-  padding: 0.2rem 0.5rem;
-  background: rgba(74, 158, 255, 0.1);
-  border-radius: 4px;
-  transition: all 0.2s;
+  padding: 0.2rem var(--spacing-sm);
+  background: var(--color-secondary-light);
+  border-radius: var(--radius-sm);
+  transition: var(--transition-fast);
 }
 
 .person-linkedin:hover {
-  background: rgba(74, 158, 255, 0.2);
-  color: #6bb0ff;
+  background: var(--color-secondary-bg);
+  color: var(--color-secondary-hover);
 }
 
 .engagement__email {
   font-size: 0.9rem;
-  color: #a0a0a0;
+  color: var(--color-text-tertiary);
   max-width: 200px;
   word-break: break-word;
 }
@@ -175,10 +175,10 @@
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-  padding: 0.3rem 0.75rem;
-  background: rgba(255, 193, 7, 0.2);
-  color: #ffd54f;
-  border-radius: 4px;
+  padding: 0.3rem var(--spacing-sm);
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
+  border-radius: var(--radius-sm);
   font-size: 0.85rem;
   font-weight: 500;
 }
@@ -245,19 +245,19 @@
 }
 
 .engagement__page-btn {
-  padding: 0.75rem 1.5rem;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 6px;
-  color: #b0b0b0;
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
   font-size: 0.95rem;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: var(--transition-fast);
 }
 
 .engagement__page-btn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.3);
+  background: var(--color-bg-tertiary);
+  border-color: var(--color-border-light);
 }
 
 .engagement__page-btn:disabled {
@@ -266,7 +266,7 @@
 }
 
 .engagement__page-info {
-  color: #a0a0a0;
+  color: var(--color-text-tertiary);
   font-size: 0.95rem;
 }
 

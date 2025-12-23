@@ -1,7 +1,11 @@
 .landing-container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: linear-gradient(
+    135deg,
+    var(--color-secondary) 0%,
+    var(--color-secondary-hover) 100%
+  );
+  color: var(--color-text-inverse);
 }
 
 /* Hero Section */
@@ -11,7 +15,7 @@
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: 2rem;
+  padding: var(--spacing-xl);
   background: rgba(0, 0, 0, 0.2);
 }
 
@@ -22,8 +26,8 @@
 .hero-title {
   font-size: 5rem;
   font-weight: 800;
-  margin-bottom: 1rem;
-  background: linear-gradient(to right, #fff, #e0e7ff);
+  margin-bottom: var(--spacing-md);
+  background: linear-gradient(to right, #fff, var(--color-secondary-light));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -39,16 +43,16 @@
 
 .hero-actions {
   display: flex;
-  gap: 1rem;
+  gap: var(--spacing-md);
   justify-content: center;
   animation: fadeInUp 0.8s ease-out 0.4s both;
 }
 
 /* About Section */
 .about-section {
-  padding: 6rem 2rem;
-  background: white;
-  color: #1a202c;
+  padding: 6rem var(--spacing-xl);
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
 }
 
 .about-content {
@@ -56,15 +60,16 @@
   margin: 0 auto;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 2rem;
+  gap: var(--spacing-xl);
 }
 
 .about-card {
-  padding: 2rem;
-  background: #f7fafc;
-  border-radius: 12px;
+  padding: var(--spacing-xl);
+  background: var(--color-bg-accent);
+  border-radius: var(--radius-lg);
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  transition: transform var(--transition-base),
+    box-shadow var(--transition-base);
 }
 
 .about-card:hover {
@@ -74,33 +79,33 @@
 
 .about-icon {
   font-size: 3rem;
-  margin-bottom: 1rem;
+  margin-bottom: var(--spacing-md);
 }
 
 .about-card h2 {
   font-size: 1.75rem;
-  margin-bottom: 1rem;
-  color: #2d3748;
+  margin-bottom: var(--spacing-md);
+  color: var(--color-text-primary);
 }
 
 .about-card p {
   line-height: 1.6;
-  color: #4a5568;
-  margin-bottom: 1rem;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--spacing-md);
 }
 
 /* Features Section */
 .features-section {
-  padding: 6rem 2rem;
-  background: #f7fafc;
-  color: #1a202c;
+  padding: 6rem var(--spacing-xl);
+  background: var(--color-bg-accent);
+  color: var(--color-text-primary);
 }
 
 .section-title {
   font-size: 2.5rem;
   text-align: center;
   margin-bottom: 3rem;
-  color: #2d3748;
+  color: var(--color-text-primary);
 }
 
 .features-grid {
@@ -108,16 +113,16 @@
   margin: 0 auto;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 2rem;
+  gap: var(--spacing-xl);
 }
 
 .feature-item {
   text-align: center;
-  padding: 2rem;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  transition: transform 0.3s ease;
+  padding: var(--spacing-xl);
+  background: var(--color-bg-primary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--transition-base);
 }
 
 .feature-item:hover {
@@ -126,44 +131,48 @@
 
 .feature-icon {
   font-size: 3rem;
-  margin-bottom: 1rem;
+  margin-bottom: var(--spacing-md);
 }
 
 .feature-item h3 {
   font-size: 1.25rem;
-  margin-bottom: 0.5rem;
-  color: #2d3748;
+  margin-bottom: var(--spacing-sm);
+  color: var(--color-text-primary);
 }
 
 .feature-item p {
-  color: #718096;
+  color: var(--color-text-tertiary);
   line-height: 1.6;
 }
 
 /* CTA Section */
 .cta-section {
-  padding: 6rem 2rem;
+  padding: 6rem var(--spacing-xl);
   text-align: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: linear-gradient(
+    135deg,
+    var(--color-secondary) 0%,
+    var(--color-secondary-hover) 100%
+  );
+  color: var(--color-text-inverse);
 }
 
 .cta-section h2 {
   font-size: 2.5rem;
-  margin-bottom: 1rem;
+  margin-bottom: var(--spacing-md);
 }
 
 .cta-section p {
   font-size: 1.25rem;
-  margin-bottom: 2rem;
+  margin-bottom: var(--spacing-xl);
   opacity: 0.95;
 }
 
 /* Footer */
 .landing-footer {
-  padding: 3rem 2rem;
-  background: #1a202c;
-  color: #cbd5e0;
+  padding: 3rem var(--spacing-xl);
+  background: var(--color-header-bg);
+  color: var(--color-border-secondary);
 }
 
 .footer-content {
@@ -174,59 +183,59 @@
 
 .footer-links {
   display: flex;
-  gap: 1rem;
+  gap: var(--spacing-md);
   justify-content: center;
-  margin-bottom: 1rem;
+  margin-bottom: var(--spacing-md);
   flex-wrap: wrap;
 }
 
 .footer-links a {
-  color: #cbd5e0;
+  color: var(--color-border-secondary);
   text-decoration: none;
-  transition: color 0.3s ease;
+  transition: color var(--transition-base);
 }
 
 .footer-links a:hover {
-  color: white;
+  color: var(--color-text-inverse);
 }
 
 .footer-divider {
-  color: #4a5568;
+  color: var(--color-text-secondary);
 }
 
 .footer-copyright {
   font-size: 0.875rem;
-  color: #718096;
+  color: var(--color-text-tertiary);
 }
 
 /* Buttons */
 .btn {
-  padding: 0.75rem 2rem;
+  padding: 0.75rem var(--spacing-xl);
   font-size: 1rem;
   font-weight: 600;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all var(--transition-base);
   text-decoration: none;
   display: inline-block;
 }
 
 .btn-primary {
-  background: white;
-  color: #667eea;
+  background: var(--color-bg-primary);
+  color: var(--color-secondary);
 }
 
 .btn-primary:hover {
-  background: #f7fafc;
+  background: var(--color-bg-accent);
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(255, 255, 255, 0.3);
 }
 
 .btn-secondary {
   background: transparent;
-  color: white;
-  border: 2px solid white;
+  color: var(--color-text-inverse);
+  border: 2px solid var(--color-text-inverse);
 }
 
 .btn-secondary:hover {
@@ -235,7 +244,7 @@
 }
 
 .btn-large {
-  padding: 1rem 3rem;
+  padding: var(--spacing-md) 3rem;
   font-size: 1.25rem;
 }
 

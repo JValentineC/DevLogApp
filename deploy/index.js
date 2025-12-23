@@ -100,9 +100,7 @@ const settingsLimiter = rateLimit({
   message: "Too many settings updates, please try again later.",
 });
 
-app.use("/api/", limiter);
-
-// Middleware
+// Middleware - CORS must come BEFORE rate limiter to handle preflight requests
 app.use(
   cors({
     origin: [
@@ -114,6 +112,9 @@ app.use(
   })
 );
 app.use(express.json({ limit: "10mb" }));
+
+// Apply rate limiter AFTER CORS
+app.use("/api/", limiter);
 
 // Health check endpoint
 app.get("/api/health", (req, res) => {

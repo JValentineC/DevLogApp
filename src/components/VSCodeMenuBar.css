@@ -3,12 +3,12 @@
 .vscode-menubar {
   display: flex;
   align-items: center;
-  background: #1e1e1e;
+  background: var(--color-header-bg);
   height: 35px;
-  color: #cccccc;
+  color: var(--color-header-text);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   font-size: 13px;
-  border-bottom: 1px solid #2d2d2d;
+  border-bottom: 1px solid var(--color-border);
   position: relative;
   z-index: 1000;
   user-select: none;
@@ -19,7 +19,7 @@
   align-items: center;
   padding: 0 12px;
   height: 100%;
-  border-right: 1px solid #2d2d2d;
+  border-right: 1px solid var(--color-border);
 }
 
 .vscode-menubar__logo-img {
@@ -43,34 +43,34 @@
 .vscode-menubar__button {
   background: none;
   border: none;
-  color: #cccccc;
+  color: var(--color-header-text);
   padding: 0 12px;
   height: 100%;
   cursor: pointer;
   font-size: 13px;
   font-family: inherit;
-  transition: background-color 0.1s, color 0.1s;
+  transition: var(--transition-fast);
   display: flex;
   align-items: center;
 }
 
 .vscode-menubar__button:hover {
-  background: #2d2d2d;
-  color: #ffffff;
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
 }
 
 .vscode-menubar__button.active {
-  background: #094771;
-  color: #ffffff;
+  background: var(--color-secondary);
+  color: white;
 }
 
 .vscode-menubar__dropdown {
   position: absolute;
   top: 100%;
   left: 0;
-  background: #252526;
-  border: 1px solid #454545;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-xl);
   min-width: 220px;
   z-index: 1001;
   animation: slideDown 0.1s ease-out;
@@ -92,29 +92,29 @@
   justify-content: space-between;
   align-items: center;
   padding: 8px 16px;
-  color: #cccccc;
+  color: var(--color-text-primary);
   cursor: pointer;
-  transition: background-color 0.1s;
+  transition: var(--transition-fast);
 }
 
 .vscode-menubar__dropdown-item:hover {
-  background: #094771;
-  color: #ffffff;
+  background: var(--color-secondary);
+  color: white;
 }
 
 .vscode-menubar__dropdown-item:active {
-  background: #007acc;
+  background: var(--color-secondary-hover);
 }
 
 .vscode-menubar__shortcut {
   font-size: 11px;
-  color: #858585;
+  color: var(--color-text-tertiary);
   margin-left: 32px;
 }
 
 .vscode-menubar__dropdown-divider {
   height: 1px;
-  background: #454545;
+  background: var(--color-border);
   margin: 4px 0;
 }
 
@@ -136,38 +136,38 @@
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: #007acc;
+  background: var(--color-secondary);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 11px;
   font-weight: 600;
-  color: #ffffff;
+  color: white;
 }
 
 .vscode-menubar__user-name {
   font-size: 12px;
-  color: #cccccc;
+  color: var(--color-text-primary);
 }
 
 .vscode-menubar__login-btn {
-  background: #0e639c;
-  border: 1px solid #0e639c;
-  color: #ffffff;
+  background: var(--color-secondary);
+  border: 1px solid var(--color-secondary);
+  color: white;
   padding: 4px 12px;
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
   font-size: 12px;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: var(--transition-fast);
 }
 
 .vscode-menubar__login-btn:hover {
-  background: #1177bb;
-  border-color: #1177bb;
+  background: var(--color-secondary-hover);
+  border-color: var(--color-secondary-hover);
 }
 
 .vscode-menubar__login-btn:active {
-  background: #094771;
+  background: var(--color-secondary-hover);
 }
 
 /* Responsive */

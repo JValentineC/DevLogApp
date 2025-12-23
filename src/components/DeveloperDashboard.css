@@ -12,11 +12,11 @@
 .dashboard-header h1 {
   font-size: 32px;
   margin-bottom: 10px;
-  color: #333;
+  color: var(--color-text-primary);
 }
 
 .dashboard-header p {
-  color: #666;
+  color: var(--color-text-tertiary);
   font-size: 14px;
 }
 
@@ -24,7 +24,7 @@
   display: flex;
   gap: 10px;
   margin-bottom: 30px;
-  border-bottom: 2px solid #e1e8ed;
+  border-bottom: 2px solid var(--color-border-primary);
   overflow-x: auto;
 }
 
@@ -36,35 +36,35 @@
   cursor: pointer;
   font-size: 14px;
   font-weight: 600;
-  color: #666;
-  transition: all 0.3s ease;
+  color: var(--color-text-tertiary);
+  transition: all var(--transition-base);
   white-space: nowrap;
 }
 
 .dashboard-tabs button:hover {
-  color: #667eea;
-  background: #f8f9fa;
+  color: var(--color-secondary);
+  background: var(--color-bg-accent);
 }
 
 .dashboard-tabs button.active {
-  color: #667eea;
-  border-bottom-color: #667eea;
+  color: var(--color-secondary);
+  border-bottom-color: var(--color-secondary);
 }
 
 .error-banner {
-  background: #fee;
-  color: #c33;
+  background: var(--color-error-bg);
+  color: var(--color-error);
   padding: 15px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   margin-bottom: 20px;
-  border-left: 4px solid #c33;
+  border-left: 4px solid var(--color-error);
 }
 
 .dashboard-content {
-  background: white;
-  border-radius: 12px;
+  background: var(--color-bg-primary);
+  border-radius: var(--radius-lg);
   padding: 30px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
   min-height: 500px;
 }
 
@@ -74,24 +74,28 @@
   align-items: center;
   margin-bottom: 20px;
   padding-bottom: 15px;
-  border-bottom: 2px solid #e1e8ed;
+  border-bottom: 2px solid var(--color-border-primary);
 }
 
 .panel-header h2 {
   font-size: 24px;
-  color: #333;
+  color: var(--color-text-primary);
   margin: 0;
 }
 
 .panel-header button {
   padding: 10px 20px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: linear-gradient(
+    135deg,
+    var(--color-secondary) 0%,
+    var(--color-secondary-hover) 100%
+  );
+  color: var(--color-text-inverse);
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   font-weight: 600;
-  transition: transform 0.2s ease;
+  transition: transform var(--transition-fast);
 }
 
 .panel-header button:hover:not(:disabled) {
@@ -108,8 +112,8 @@
   background: #1e1e1e;
   color: #d4d4d4;
   padding: 20px;
-  border-radius: 8px;
-  font-family: "Courier New", monospace;
+  border-radius: var(--radius-md);
+  font-family: var(--font-family-mono);
   font-size: 13px;
   max-height: 600px;
   overflow-y: auto;
@@ -154,17 +158,23 @@
 .query-selector select {
   flex: 1;
   padding: 12px;
-  border: 2px solid #e1e8ed;
-  border-radius: 8px;
+  border: 2px solid var(--color-border-primary);
+  border-radius: var(--radius-md);
   font-size: 14px;
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
 }
 
 .query-selector button {
   padding: 12px 30px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: linear-gradient(
+    135deg,
+    var(--color-secondary) 0%,
+    var(--color-secondary-hover) 100%
+  );
+  color: var(--color-text-inverse);
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   font-weight: 600;
 }
@@ -175,22 +185,22 @@
 }
 
 .query-results {
-  background: #f8f9fa;
+  background: var(--color-bg-accent);
   padding: 20px;
-  border-radius: 8px;
-  border: 1px solid #e1e8ed;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-primary);
 }
 
 .query-results h3 {
   margin-top: 0;
-  color: #333;
+  color: var(--color-text-primary);
 }
 
 .query-results pre {
   background: #1e1e1e;
   color: #d4d4d4;
   padding: 20px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   overflow-x: auto;
   font-size: 13px;
 }
@@ -204,10 +214,14 @@
 }
 
 .stat-card {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: linear-gradient(
+    135deg,
+    var(--color-secondary) 0%,
+    var(--color-secondary-hover) 100%
+  );
+  color: var(--color-text-inverse);
   padding: 30px;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   text-align: center;
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
 }
@@ -244,33 +258,37 @@
 }
 
 .export-card {
-  background: #f8f9fa;
+  background: var(--color-bg-accent);
   padding: 30px;
-  border-radius: 12px;
-  border: 2px solid #e1e8ed;
+  border-radius: var(--radius-lg);
+  border: 2px solid var(--color-border-primary);
   text-align: center;
 }
 
 .export-card h3 {
   margin: 0 0 10px 0;
-  color: #333;
+  color: var(--color-text-primary);
   font-size: 20px;
 }
 
 .export-card p {
-  color: #666;
+  color: var(--color-text-tertiary);
   margin-bottom: 20px;
 }
 
 .export-card button {
   padding: 12px 30px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: linear-gradient(
+    135deg,
+    var(--color-secondary) 0%,
+    var(--color-secondary-hover) 100%
+  );
+  color: var(--color-text-inverse);
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   font-weight: 600;
-  transition: transform 0.2s ease;
+  transition: transform var(--transition-fast);
 }
 
 .export-card button:hover:not(:disabled) {
@@ -288,29 +306,29 @@
 }
 
 .danger-zone {
-  background: #fff5f5;
-  border: 2px solid #feb2b2;
-  border-radius: 12px;
+  background: var(--color-error-bg);
+  border: 2px solid var(--color-error-border);
+  border-radius: var(--radius-lg);
   padding: 30px;
   text-align: center;
 }
 
 .danger-zone h3 {
-  color: #c53030;
+  color: var(--color-error);
   margin: 0 0 20px 0;
   font-size: 20px;
 }
 
 .restart-button {
   padding: 14px 40px;
-  background: #c53030;
-  color: white;
+  background: var(--color-error);
+  color: var(--color-text-inverse);
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   font-size: 16px;
   font-weight: 600;
-  transition: all 0.2s ease;
+  transition: all var(--transition-fast);
 }
 
 .restart-button:hover:not(:disabled) {
