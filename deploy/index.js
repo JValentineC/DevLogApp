@@ -361,7 +361,7 @@ app.post("/api/auth/verify-alumni", async (req, res) => {
          WHERE LOWER(p.orgEmail) = LOWER(?) OR LOWER(p.personalEmail) = LOWER(?)`,
         [email, email]
       );
-      
+
       // Then check User table for already claimed accounts
       const [userEmailMatches] = await pool.execute(
         `SELECT u.id, u.firstName, u.lastName, u.email, u.username, p.orgEmail, p.icaaTier, p.accountStatus 
@@ -370,7 +370,7 @@ app.post("/api/auth/verify-alumni", async (req, res) => {
          WHERE LOWER(u.email) = LOWER(?)`,
         [email]
       );
-      
+
       matches.push(...personEmailMatches, ...userEmailMatches);
     }
 
@@ -383,7 +383,7 @@ app.post("/api/auth/verify-alumni", async (req, res) => {
          WHERE LOWER(p.firstName) = LOWER(?) AND LOWER(p.lastName) = LOWER(?)`,
         [firstName, lastName]
       );
-      
+
       // Then check User table for already claimed accounts
       const [userNameMatches] = await pool.execute(
         `SELECT u.id, u.firstName, u.lastName, u.email, u.username, p.orgEmail, p.icaaTier, p.accountStatus 
@@ -392,7 +392,7 @@ app.post("/api/auth/verify-alumni", async (req, res) => {
          WHERE LOWER(u.firstName) = LOWER(?) AND LOWER(u.lastName) = LOWER(?)`,
         [firstName, lastName]
       );
-      
+
       matches.push(...personNameMatches, ...userNameMatches);
     }
 
@@ -434,7 +434,7 @@ app.post("/api/auth/verify-alumni", async (req, res) => {
     // Check if any match already has an activated account
     const alreadyActivated = uniqueMatches.find(
       (match) =>
-        match.accountStatus === "activated" || 
+        match.accountStatus === "activated" ||
         match.accountStatus === "active" ||
         match.accountStatus === "signed_up" ||
         (match.userId !== null && match.userId !== undefined) // Person record linked to a User
@@ -829,41 +829,75 @@ app.post("/api/auth/register", authLimiter, async (req, res) => {
 
     // Check if username is already taken by someone else (case-sensitive)
     const [usernameCheck] = await pool.execute(
-      "SELECT id FROM User WHERE BINARY username = ? AND id != ?",
-      [username, existingUser.id]
+      "SELECT id FROM User WHERE BINARY username = ?",
+      [username]
     );
 
+    // If username exists and it's not the same person trying to register
     if (usernameCheck.length > 0) {
-      return res.status(409).json({
-        success: false,
-        error: "Username is already taken. Please choose another.",
-      });
+      const existingUsernameId = usernameCheck[0].id;
+      // Only block if it's a different user (not updating their own username)
+      if (existingUser && existingUsernameId !== existingUser.id) {
+        return res.status(409).json({
+          success: false,
+          error: "Username is already taken. Please choose another.",
+        });
+      } else if (!existingUser) {
+        // New user trying to use taken username
+        return res.status(409).json({
+          success: false,
+          error: "Username is already taken. Please choose another.",
+        });
+      }
     }
 
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Update the existing User record with account details
-    await pool.execute(
-      `UPDATE User 
-       SET username = ?, 
-           password = ?, 
-           email = ?,
-           middleName = ?,
-           passwordHint = ?,
-           bio = ?,
-           updatedAt = NOW() 
-       WHERE id = ?`,
-      [
-        username,
-        hashedPassword,
-        email,
-        middleName,
-        passwordHint,
-        bio,
-        existingUser.id,
-      ]
-    );
+    let userId;
+
+    // If there's an existing User, update it; otherwise, create a new one
+    if (existingUser) {
+      // Update the existing User record with account details
+      await pool.execute(
+        `UPDATE User 
+         SET username = ?, 
+             password = ?, 
+             email = ?,
+             middleName = ?,
+             passwordHint = ?,
+             bio = ?,
+             updatedAt = NOW() 
+         WHERE id = ?`,
+        [
+          username,
+          hashedPassword,
+          email,
+          middleName,
+          passwordHint,
+          bio,
+          existingUser.id,
+        ]
+      );
+      userId = existingUser.id;
+    } else if (orphanedPerson) {
+      // Create a new User record for the orphaned Person
+      const [result] = await pool.execute(
+        `INSERT INTO User (username, password, email, firstName, middleName, lastName, passwordHint, bio, role, createdAt, updatedAt) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'user', NOW(), NOW())`,
+        [
+          username,
+          hashedPassword,
+          email,
+          firstName,
+          middleName,
+          lastName,
+          passwordHint,
+          bio,
+        ]
+      );
+      userId = result.insertId;
+    }
 
     // Update or create Person record
     const fullName = `${firstName}${
@@ -890,7 +924,7 @@ app.post("/api/auth/register", authLimiter, async (req, res) => {
              updatedAt = NOW()
          WHERE id = ?`,
         [
-          existingUser.id,
+          userId,
           firstName,
           lastName,
           fullName,
@@ -909,7 +943,7 @@ app.post("/api/auth/register", authLimiter, async (req, res) => {
         `INSERT INTO Person (userId, firstName, lastName, fullName, orgEmail, phone, linkedInUrl, portfolioUrl, isICaaMember, accountStatus, icaaTier, createdAt, updatedAt) 
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'activated', ?, NOW(), NOW())`,
         [
-          existingUser.id,
+          userId,
           firstName,
           lastName,
           fullName,
@@ -924,7 +958,7 @@ app.post("/api/auth/register", authLimiter, async (req, res) => {
     }
 
     // Generate JWT token
-    const token = generateToken(existingUser.id, username, email, "user");
+    const token = generateToken(userId, username, email, "user");
 
     // Handle 2FA setup if requested
     let twoFactorData = {};
@@ -950,7 +984,7 @@ app.post("/api/auth/register", authLimiter, async (req, res) => {
              backupCodes = ?,
              twoFactorEnabledAt = NOW()
          WHERE id = ?`,
-        [secret.base32, JSON.stringify(backupCodes), existingUser.id]
+        [secret.base32, JSON.stringify(backupCodes), userId]
       );
 
       const QRCode = await import("qrcode");
@@ -967,7 +1001,7 @@ app.post("/api/auth/register", authLimiter, async (req, res) => {
       success: true,
       message: "Account activated successfully",
       user: {
-        id: existingUser.id,
+        id: userId,
         username,
         email,
         name: `${firstName}${middleName ? " " + middleName : ""} ${lastName}`,
