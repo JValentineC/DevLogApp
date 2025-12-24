@@ -352,45 +352,69 @@ app.post("/api/auth/verify-alumni", async (req, res) => {
 
     let matches = [];
 
-    // Check 1: Email match in Person table
+    // Check 1: Email match in Person table (both claimed and unclaimed)
     if (email) {
-      const [emailMatches] = await pool.execute(
+      // First check Person table for unclaimed accounts
+      const [personEmailMatches] = await pool.execute(
+        `SELECT p.id, p.firstName, p.lastName, p.orgEmail, p.personalEmail, p.icaaTier, p.accountStatus, p.userId
+         FROM Person p 
+         WHERE LOWER(p.orgEmail) = LOWER(?) OR LOWER(p.personalEmail) = LOWER(?)`,
+        [email, email]
+      );
+      
+      // Then check User table for already claimed accounts
+      const [userEmailMatches] = await pool.execute(
         `SELECT u.id, u.firstName, u.lastName, u.email, u.username, p.orgEmail, p.icaaTier, p.accountStatus 
          FROM User u 
          LEFT JOIN Person p ON u.id = p.userId 
-         WHERE LOWER(u.email) = LOWER(?) OR LOWER(p.orgEmail) = LOWER(?)`,
-        [email, email]
+         WHERE LOWER(u.email) = LOWER(?)`,
+        [email]
       );
-      matches.push(...emailMatches);
+      
+      matches.push(...personEmailMatches, ...userEmailMatches);
     }
 
-    // Check 2: First name + Last name match
+    // Check 2: First name + Last name match (both claimed and unclaimed)
     if (firstName && lastName && matches.length === 0) {
-      const [nameMatches] = await pool.execute(
+      // First check Person table for unclaimed accounts
+      const [personNameMatches] = await pool.execute(
+        `SELECT p.id, p.firstName, p.lastName, p.orgEmail, p.personalEmail, p.icaaTier, p.accountStatus, p.userId
+         FROM Person p 
+         WHERE LOWER(p.firstName) = LOWER(?) AND LOWER(p.lastName) = LOWER(?)`,
+        [firstName, lastName]
+      );
+      
+      // Then check User table for already claimed accounts
+      const [userNameMatches] = await pool.execute(
         `SELECT u.id, u.firstName, u.lastName, u.email, u.username, p.orgEmail, p.icaaTier, p.accountStatus 
          FROM User u 
          LEFT JOIN Person p ON u.id = p.userId 
          WHERE LOWER(u.firstName) = LOWER(?) AND LOWER(u.lastName) = LOWER(?)`,
         [firstName, lastName]
       );
-      matches.push(...nameMatches);
+      
+      matches.push(...personNameMatches, ...userNameMatches);
     }
 
     // Check 3: First name + Cycle code match (if provided)
     if (firstName && cycleCode && matches.length === 0) {
-      const [cycleMatches] = await pool.execute(
-        `SELECT u.id, u.firstName, u.lastName, u.email, u.username, p.orgEmail, p.icaaTier, p.accountStatus 
-         FROM User u 
-         LEFT JOIN Person p ON u.id = p.userId 
-         WHERE LOWER(u.firstName) = LOWER(?) AND p.icaaTier = ?`,
+      // Check Person table for cycle memberships
+      const [personCycleMatches] = await pool.execute(
+        `SELECT DISTINCT p.id, p.firstName, p.lastName, p.orgEmail, p.personalEmail, p.icaaTier, p.accountStatus, p.userId
+         FROM Person p 
+         LEFT JOIN CycleMembership cm ON p.id = cm.personId
+         LEFT JOIN Cycle c ON cm.cycleId = c.id
+         WHERE LOWER(p.firstName) = LOWER(?) AND LOWER(c.code) = LOWER(?)`,
         [firstName, cycleCode]
       );
-      matches.push(...cycleMatches);
+      matches.push(...personCycleMatches);
     }
 
-    // Remove duplicates based on user id
+    // Remove duplicates based on person id or user id
     const uniqueMatches = matches.reduce((acc, current) => {
-      const exists = acc.find((item) => item.id === current.id);
+      // For Person records, use person id; for User records, use user id
+      const idToCheck = current.userId || current.id;
+      const exists = acc.find((item) => (item.userId || item.id) === idToCheck);
       if (!exists) {
         acc.push(current);
       }
@@ -410,7 +434,10 @@ app.post("/api/auth/verify-alumni", async (req, res) => {
     // Check if any match already has an activated account
     const alreadyActivated = uniqueMatches.find(
       (match) =>
-        match.accountStatus === "activated" || match.accountStatus === "active"
+        match.accountStatus === "activated" || 
+        match.accountStatus === "active" ||
+        match.accountStatus === "signed_up" ||
+        (match.userId !== null && match.userId !== undefined) // Person record linked to a User
     );
 
     if (alreadyActivated) {
