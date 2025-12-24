@@ -13,11 +13,15 @@ const Login = lazy(() => import("./components/Login"));
 const Landing = lazy(() => import("./components/Landing"));
 const Profile = lazy(() => import("./components/Profile"));
 const UserList = lazy(() => import("./components/UserList"));
-const AdminUserManagement = lazy(() => import("./components/AdminUserManagement"));
+const AdminUserManagement = lazy(
+  () => import("./components/AdminUserManagement")
+);
 const Engagement = lazy(() => import("./components/Engagement"));
 const ForgotPassword = lazy(() => import("./components/ForgotPassword"));
 const ResetPassword = lazy(() => import("./components/ResetPassword"));
-const DeveloperDashboard = lazy(() => import("./components/DeveloperDashboard"));
+const DeveloperDashboard = lazy(
+  () => import("./components/DeveloperDashboard")
+);
 
 interface User {
   id: number;
@@ -132,11 +136,13 @@ function App() {
         <div className="drawer-content flex flex-col">
           {/* Page content */}
           <div className="flex-1 p-4">
-            <Suspense fallback={
-              <div className="flex items-center justify-center h-64">
-                <span className="loading loading-spinner loading-lg"></span>
-              </div>
-            }>
+            <Suspense
+              fallback={
+                <div className="flex items-center justify-center h-64">
+                  <span className="loading loading-spinner loading-lg"></span>
+                </div>
+              }
+            >
               {currentPage === "logs" ? (
                 <>
                   {user || selectedUserId ? (
@@ -420,7 +426,11 @@ function App() {
               </button>
             </form>
             <h3 className="font-bold text-lg mb-4">New Entry</h3>
-            <Suspense fallback={<span className="loading loading-spinner loading-lg"></span>}>
+            <Suspense
+              fallback={
+                <span className="loading loading-spinner loading-lg"></span>
+              }
+            >
               <EntryLogger
                 onSubmit={() => {
                   handleEntryCreated();
@@ -447,7 +457,11 @@ function App() {
               </button>
             </form>
             <h3 className="font-bold text-lg mb-4">Edit Entry</h3>
-            <Suspense fallback={<span className="loading loading-spinner loading-lg"></span>}>
+            <Suspense
+              fallback={
+                <span className="loading loading-spinner loading-lg"></span>
+              }
+            >
               <EditLogger
                 entry={editingEntry}
                 onSuccess={handleEditSuccess}
@@ -463,7 +477,11 @@ function App() {
 
       {/* Login Modal */}
       {showLogin && (
-        <Suspense fallback={<span className="loading loading-spinner loading-lg"></span>}>
+        <Suspense
+          fallback={
+            <span className="loading loading-spinner loading-lg"></span>
+          }
+        >
           <Login
             onLoginSuccess={handleLoginSuccess}
             onClose={() => setShowLogin(false)}
