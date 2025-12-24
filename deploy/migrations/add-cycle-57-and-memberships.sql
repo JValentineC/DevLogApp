@@ -2,15 +2,15 @@
 -- Date: 2025-12-23
 
 -- Add Cycle 57 if it doesn't exist
-INSERT IGNORE INTO Cycle (code, city, startDate, notes, createdAt, updatedAt) 
-VALUES ('CHI-57', 'Chicago', '2024-01-01', 'Chicago Cycle 57', NOW(), NOW());
+INSERT IGNORE INTO Cycle (code, city, startDate, notes) 
+VALUES ('CHI-57', 'Chicago', '2024-01-01', 'Chicago Cycle 57');
 
 -- Get the cycle ID for Cycle 57
 SET @cycle57Id = (SELECT id FROM Cycle WHERE code = 'CHI-57' LIMIT 1);
 
 -- Link all 14 new alumni to Cycle 57
-INSERT INTO CycleMembership (cycleId, personId, status, createdAt, updatedAt)
-SELECT @cycle57Id, id, 'alumni', NOW(), NOW()
+INSERT INTO CycleMembership (cycleId, personId, status)
+SELECT @cycle57Id, id, 'alumni'
 FROM Person 
 WHERE orgEmail IN (
     'asimmons@icstars.org',
@@ -28,7 +28,7 @@ WHERE orgEmail IN (
     'pobeng-amaning@icstars.org',
     'wmeyer@icstars.org'
 )
-ON DUPLICATE KEY UPDATE updatedAt = NOW();
+ON DUPLICATE KEY UPDATE status = 'alumni';
 
 -- Verify the insertions
 SELECT 
