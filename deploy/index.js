@@ -2413,6 +2413,7 @@ app.get(
         SELECT 
           c.id,
           c.code,
+          CAST(REGEXP_REPLACE(c.code, '[^0-9]', '') AS UNSIGNED) as cycleNumber,
           c.city,
           c.notes,
           COUNT(DISTINCT cm.personId) as memberCount,
@@ -2421,7 +2422,7 @@ app.get(
         LEFT JOIN CycleMembership cm ON c.id = cm.cycleId
         LEFT JOIN CaptainAssignment ca ON c.id = ca.cycleId
         GROUP BY c.id
-        ORDER BY c.code
+        ORDER BY cycleNumber DESC
       `);
 
       res.json({
