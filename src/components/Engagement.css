@@ -356,9 +356,10 @@
     background: var(--color-bg-tertiary);
     z-index: 1;
     box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
-    max-width: 120px;
-    min-width: 100px;
-    width: 35%;
+    max-width: 90px;
+    min-width: 80px;
+    width: 90px !important;
+    padding: 0.6rem 0.4rem !important;
   }
 
   .person-name-full {
@@ -367,6 +368,17 @@
 
   .person-name-mobile {
     display: inline;
+    font-size: 0.8rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .person-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-bottom: 0.2rem;
   }
 
   .engagement__table td:first-child {
@@ -378,12 +390,16 @@
   }
 
   .engagement__name {
-    font-size: 0.9rem;
+    font-size: 0.85rem;
+    overflow: hidden;
   }
 
-  .engagement__email {
-    font-size: 0.85rem;
-    max-width: 150px;
+  .person-linkedin {
+    font-size: 0.7rem;
+    padding: 0.15rem 0.3rem;
+    display: block;
+    text-align: center;
+    margin-top: 0.2rem;
   }
 
   .status-badge,
@@ -391,11 +407,6 @@
   .icaa-badge {
     padding: 0.25rem 0.5rem;
     font-size: 0.75rem;
-  }
-
-  .person-linkedin {
-    font-size: 0.75rem;
-    padding: 0.2rem 0.4rem;
   }
 
   .engagement__pagination {
