@@ -51,6 +51,11 @@
   --color-warning: #ffc107;
   --color-warning-bg: #fff3cd;
   --color-info: #17a2b8;
+  --color-info-bg: #d1ecf1;
+  --color-info-border: #bee5eb;
+
+  /* Overlays */
+  --color-overlay: rgba(0, 0, 0, 0.7);
 
   /* Shadows */
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
@@ -123,4 +128,9 @@ body.dark-mode {
   --color-error-bg: #4a1c1c;
   --color-error-border: #721c24;
   --color-warning-bg: #4a3c1c;
+  --color-info-bg: #1c3d47;
+  --color-info-border: #2d5a66;
+
+  /* Overlays - Dark Mode */
+  --color-overlay: rgba(0, 0, 0, 0.85);
 }
