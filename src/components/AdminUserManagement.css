@@ -99,6 +99,9 @@
 
 .users-table thead {
   background: var(--color-bg-tertiary);
+  position: sticky;
+  top: 0;
+  z-index: 2;
 }
 
 .users-table th {
