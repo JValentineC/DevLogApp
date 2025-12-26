@@ -16,7 +16,7 @@ type Theme = "light" | "dark";
 interface VSCodeMenuBarProps {
   user: User | null;
   onNavigate: (
-    page: "home" | "logs" | "profile" | "admin" | "engagement"
+    page: "home" | "logs" | "profile" | "admin" | "engagement" | "developer"
   ) => void;
   onLogout: () => void;
   onLogin: () => void;
@@ -70,14 +70,14 @@ const VSCodeMenuBar = ({
 
   return (
     <div className="vscode-menubar" ref={menuRef}>
-      {/* Logo */}
-      <div className="vscode-menubar__logo">
+      {/* Logo - acts as hamburger menu on mobile */}
+      <label htmlFor="my-drawer" className="vscode-menubar__logo lg:pointer-events-none">
         <img
           src="/DevLogApp/favicon-32x32 (2).png"
           alt="Logo"
           className="vscode-menubar__logo-img"
         />
-      </div>
+      </label>
 
       {/* Menu Items */}
       <div className="vscode-menubar__items">
@@ -158,6 +158,56 @@ const VSCodeMenuBar = ({
                 >
                   <span>View My Logs</span>
                   <span className="vscode-menubar__shortcut">Ctrl+L</span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Admin (Super Admin only) */}
+        {user && user.role === "super_admin" && (
+          <div className="vscode-menubar__item">
+            <button
+              className={`vscode-menubar__button ${
+                activeMenu === "admin" ? "active" : ""
+              }`}
+              onClick={() => handleMenuClick("admin")}
+            >
+              Admin
+            </button>
+            {activeMenu === "admin" && (
+              <div className="vscode-menubar__dropdown">
+                <div
+                  className="vscode-menubar__dropdown-item"
+                  onClick={() => handleMenuItemClick(() => onNavigate("admin"))}
+                >
+                  <span>User Management</span>
+                  <span className="vscode-menubar__shortcut">Ctrl+A</span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Engagement (Admin+ only) */}
+        {user && (user.role === "admin" || user.role === "super_admin") && (
+          <div className="vscode-menubar__item">
+            <button
+              className={`vscode-menubar__button ${
+                activeMenu === "engagement" ? "active" : ""
+              }`}
+              onClick={() => handleMenuClick("engagement")}
+            >
+              Engagement
+            </button>
+            {activeMenu === "engagement" && (
+              <div className="vscode-menubar__dropdown">
+                <div
+                  className="vscode-menubar__dropdown-item"
+                  onClick={() => handleMenuItemClick(() => onNavigate("engagement"))}
+                >
+                  <span>Alumni Engagement</span>
+                  <span className="vscode-menubar__shortcut">Ctrl+E</span>
                 </div>
               </div>
             )}

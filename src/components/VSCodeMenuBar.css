@@ -20,6 +20,23 @@
   padding: 0 12px;
   height: 100%;
   border-right: 1px solid var(--color-border);
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.vscode-menubar__logo:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* On large screens, logo is not clickable */
+@media (min-width: 1024px) {
+  .vscode-menubar__logo {
+    cursor: default;
+  }
+  
+  .vscode-menubar__logo:hover {
+    background: transparent;
+  }
 }
 
 .vscode-menubar__logo-img {
