@@ -151,6 +151,14 @@
   margin-bottom: 0.25rem;
 }
 
+.person-name-mobile {
+  display: none;
+}
+
+.person-name-full {
+  display: inline;
+}
+
 .person-linkedin {
   display: inline-block;
   font-size: 0.8rem;
@@ -348,6 +356,17 @@
     background: var(--color-bg-tertiary);
     z-index: 1;
     box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
+    max-width: 120px;
+    min-width: 100px;
+    width: 35%;
+  }
+
+  .person-name-full {
+    display: none;
+  }
+
+  .person-name-mobile {
+    display: inline;
   }
 
   .engagement__table td:first-child {
