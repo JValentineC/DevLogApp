@@ -70,7 +70,7 @@ function TwoFactorVerify({
       <div className="verify-header">
         <h2>Two-Factor Authentication</h2>
       </div>
-      
+
       <div className="verify-content">
         <div className="user-badge">
           <div className="user-avatar">
@@ -83,12 +83,10 @@ function TwoFactorVerify({
 
         <form onSubmit={handleVerify} className="verify-form">
           {error && <div className="login-error">{error}</div>}
-          
+
           {!useBackupCode ? (
             <div className="form-group">
-              <label>
-                Enter 6-digit code from your authenticator app
-              </label>
+              <label>Enter 6-digit code from your authenticator app</label>
               <input
                 type="text"
                 inputMode="numeric"

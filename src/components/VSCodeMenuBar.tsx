@@ -71,7 +71,10 @@ const VSCodeMenuBar = ({
   return (
     <div className="vscode-menubar" ref={menuRef}>
       {/* Logo - acts as hamburger menu on mobile */}
-      <label htmlFor="my-drawer" className="vscode-menubar__logo lg:pointer-events-none">
+      <label
+        htmlFor="my-drawer"
+        className="vscode-menubar__logo lg:pointer-events-none"
+      >
         <img
           src="/DevLogApp/favicon-32x32 (2).png"
           alt="Logo"
@@ -204,7 +207,9 @@ const VSCodeMenuBar = ({
               <div className="vscode-menubar__dropdown">
                 <div
                   className="vscode-menubar__dropdown-item"
-                  onClick={() => handleMenuItemClick(() => onNavigate("engagement"))}
+                  onClick={() =>
+                    handleMenuItemClick(() => onNavigate("engagement"))
+                  }
                 >
                   <span>Alumni Engagement</span>
                   <span className="vscode-menubar__shortcut">Ctrl+E</span>

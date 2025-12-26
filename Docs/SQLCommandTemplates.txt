@@ -1,0 +1,356 @@
+========================================
+SQL COMMAND TEMPLATES - DevLogs Project
+========================================
+
+=== 1. ADD NEW ALUMNI TO PERSON TABLE ===
+
+-- Single User
+INSERT INTO Person (firstName, lastName, fullName, orgEmail, accountStatus, createdAt, updatedAt) 
+VALUES ('FirstName', 'LastName', 'FirstName LastName', 'email@icstars.org', 'unclaimed', NOW(), NOW());
+
+-- Multiple Users (Batch Insert)
+INSERT INTO Person (firstName, lastName, fullName, orgEmail, accountStatus, createdAt, updatedAt) VALUES
+('FirstName1', 'LastName1', 'FirstName1 LastName1', 'email1@icstars.org', 'unclaimed', NOW(), NOW()),
+('FirstName2', 'LastName2', 'FirstName2 LastName2', 'email2@icstars.org', 'unclaimed', NOW(), NOW()),
+('FirstName3', 'LastName3', 'FirstName3 LastName3', 'email3@icstars.org', 'unclaimed', NOW(), NOW());
+
+RESULT: Returns number of rows inserted
+CHANGE: Replace FirstName, LastName, email@icstars.org with actual values
+
+
+=== 2. VERIFY PERSON RECORDS ===
+
+-- Single User
+SELECT id, firstName, lastName, orgEmail, accountStatus 
+FROM Person 
+WHERE orgEmail = 'email@icstars.org';
+
+-- Multiple Specific Users
+SELECT id, firstName, lastName, orgEmail, accountStatus 
+FROM Person 
+WHERE orgEmail IN ('email1@icstars.org', 'email2@icstars.org', 'email3@icstars.org')
+ORDER BY lastName, firstName;
+
+-- All Unclaimed Accounts
+SELECT id, firstName, lastName, orgEmail, accountStatus 
+FROM Person 
+WHERE accountStatus = 'unclaimed'
+ORDER BY lastName, firstName;
+
+-- All Users (with status filter)
+SELECT id, firstName, lastName, orgEmail, accountStatus 
+FROM Person 
+WHERE accountStatus = 'activated'  -- Change to 'unclaimed', 'invited', etc.
+ORDER BY lastName, firstName;
+
+RESULT: Returns person records with ID, name, email, and status
+CHANGE: Replace email addresses, change accountStatus value
+
+
+=== 3. CHECK USER ACCOUNT ===
+
+-- Single User by Email
+SELECT id, username, firstName, lastName, email, role
+FROM User 
+WHERE email = 'email@icstars.org';
+
+-- Single User by Username
+SELECT id, username, firstName, lastName, email, role
+FROM User 
+WHERE username = 'username';
+
+-- Multiple Users
+SELECT id, username, firstName, lastName, email, role
+FROM User 
+WHERE email IN ('email1@icstars.org', 'email2@icstars.org');
+
+RESULT: Returns user account details including ID, username, email, role
+CHANGE: Replace email or username with actual value
+
+
+=== 4. CHECK PERSON AND USER LINKAGE ===
+
+-- Single User - Check if Person is linked to User
+SELECT id, firstName, lastName, orgEmail, accountStatus, userId 
+FROM Person 
+WHERE orgEmail = 'email@icstars.org';
+
+-- Check Both User and Person Records (Simple)
+-- Step 1: Get User
+SELECT id, username, firstName, lastName, email 
+FROM User 
+WHERE email = 'email@icstars.org';
+
+-- Step 2: Get Person (use User ID from above)
+SELECT id, firstName, lastName, orgEmail, accountStatus, userId 
+FROM Person 
+WHERE userId = 123;  -- Replace with actual User ID
+
+-- Find Orphaned Person Records (no User linked)
+SELECT id, firstName, lastName, orgEmail, accountStatus, userId 
+FROM Person 
+WHERE userId IS NULL;
+
+RESULT: Shows if Person record is linked to User (userId should match User.id)
+CHANGE: Replace email or user ID
+
+
+=== 5. UPDATE PERSON ACCOUNT STATUS ===
+
+-- Single User - Link Person to User and Activate
+UPDATE Person 
+SET userId = (SELECT id FROM User WHERE email = 'email@icstars.org'),
+    accountStatus = 'activated'
+WHERE orgEmail = 'email@icstars.org';
+
+-- Single User - Change Status Only
+UPDATE Person 
+SET accountStatus = 'activated'  -- Change to 'unclaimed', 'invited', etc.
+WHERE orgEmail = 'email@icstars.org';
+
+-- Multiple Users - Update Status
+UPDATE Person 
+SET accountStatus = 'activated'
+WHERE orgEmail IN ('email1@icstars.org', 'email2@icstars.org');
+
+RESULT: Returns number of rows updated
+CHANGE: Replace email addresses and accountStatus value
+
+
+=== 6. CREATE CYCLE ===
+
+-- Single Cycle
+INSERT IGNORE INTO Cycle (code, city, startDate, notes) 
+VALUES ('CHI-57', 'Chicago', '2024-01-01', 'Chicago Cycle 57');
+
+-- Multiple Cycles
+INSERT IGNORE INTO Cycle (code, city, startDate, notes) VALUES
+('CHI-57', 'Chicago', '2024-01-01', 'Chicago Cycle 57'),
+('CHI-58', 'Chicago', '2024-06-01', 'Chicago Cycle 58'),
+('NYC-10', 'New York', '2024-01-01', 'New York Cycle 10');
+
+-- Verify Cycle Created
+SELECT * FROM Cycle WHERE code = 'CHI-57';
+
+RESULT: Creates cycle record, returns 0 if already exists (IGNORE)
+CHANGE: Replace code, city, startDate, and notes
+
+
+=== 7. LINK ALUMNI TO CYCLE ===
+
+-- Single User to Cycle
+INSERT INTO CycleMembership (cycleId, personId, status)
+VALUES (
+    (SELECT id FROM Cycle WHERE code = 'CHI-57'),
+    (SELECT id FROM Person WHERE orgEmail = 'email@icstars.org'),
+    'alumni'
+)
+ON DUPLICATE KEY UPDATE status = 'alumni';
+
+-- Multiple Users to Same Cycle
+SET @cycleId = (SELECT id FROM Cycle WHERE code = 'CHI-57');
+
+INSERT INTO CycleMembership (cycleId, personId, status)
+SELECT @cycleId, id, 'alumni'
+FROM Person 
+WHERE orgEmail IN ('email1@icstars.org', 'email2@icstars.org', 'email3@icstars.org')
+ON DUPLICATE KEY UPDATE status = 'alumni';
+
+-- All Unclaimed Users to Cycle
+SET @cycleId = (SELECT id FROM Cycle WHERE code = 'CHI-57');
+
+INSERT INTO CycleMembership (cycleId, personId, status)
+SELECT @cycleId, id, 'alumni'
+FROM Person 
+WHERE accountStatus = 'unclaimed'
+ON DUPLICATE KEY UPDATE status = 'alumni';
+
+RESULT: Links person records to cycle, returns number of rows affected
+CHANGE: Replace cycle code, email addresses, status ('alumni', 'active', 'graduated')
+
+
+=== 8. VERIFY CYCLE MEMBERSHIPS ===
+
+-- Single User - Check Cycle Membership
+SELECT 
+    c.code AS cycle,
+    p.firstName,
+    p.lastName,
+    p.orgEmail,
+    p.accountStatus,
+    cm.status AS cycleStatus
+FROM Person p
+INNER JOIN CycleMembership cm ON p.id = cm.personId
+INNER JOIN Cycle c ON cm.cycleId = c.id
+WHERE p.orgEmail = 'email@icstars.org';
+
+-- Multiple Specific Users
+SELECT 
+    c.code AS cycle,
+    p.firstName,
+    p.lastName,
+    p.orgEmail,
+    cm.status AS cycleStatus
+FROM Person p
+INNER JOIN CycleMembership cm ON p.id = cm.personId
+INNER JOIN Cycle c ON cm.cycleId = c.id
+WHERE p.orgEmail IN ('email1@icstars.org', 'email2@icstars.org')
+ORDER BY p.lastName, p.firstName;
+
+-- All Users in Specific Cycle
+SELECT 
+    c.code AS cycle,
+    p.firstName,
+    p.lastName,
+    p.orgEmail,
+    p.accountStatus,
+    cm.status AS cycleStatus
+FROM Person p
+INNER JOIN CycleMembership cm ON p.id = cm.personId
+INNER JOIN Cycle c ON cm.cycleId = c.id
+WHERE c.code = 'CHI-57'
+ORDER BY p.lastName, p.firstName;
+
+-- All Cycle Memberships (Overview)
+SELECT 
+    c.code AS cycle,
+    COUNT(cm.personId) AS memberCount,
+    GROUP_CONCAT(DISTINCT cm.status) AS statuses
+FROM Cycle c
+LEFT JOIN CycleMembership cm ON c.id = cm.cycleId
+GROUP BY c.id, c.code
+ORDER BY c.code;
+
+RESULT: Shows person details with their cycle and status
+CHANGE: Replace email addresses or cycle code
+
+
+=== 9. GET ALL CYCLES ===
+
+-- Simple List
+SELECT id, code, city, startDate, notes 
+FROM Cycle 
+ORDER BY code;
+
+-- With Member Counts
+SELECT 
+    c.id,
+    c.code,
+    c.city,
+    COUNT(DISTINCT cm.personId) as memberCount
+FROM Cycle c
+LEFT JOIN CycleMembership cm ON c.id = cm.cycleId
+GROUP BY c.id, c.code, c.city
+ORDER BY c.code;
+
+RESULT: Returns all cycles with optional member counts
+CHANGE: None needed for all cycles
+
+
+=== 10. SEARCH QUERIES ===
+
+-- Search Person by Name (Partial Match)
+SELECT id, firstName, lastName, orgEmail, accountStatus 
+FROM Person 
+WHERE firstName LIKE '%search%' OR lastName LIKE '%search%'
+ORDER BY lastName, firstName;
+
+-- Search User by Username (Partial Match)
+SELECT id, username, firstName, lastName, email 
+FROM User 
+WHERE username LIKE '%search%'
+ORDER BY username;
+
+-- Search by Email Domain
+SELECT id, firstName, lastName, orgEmail, accountStatus 
+FROM Person 
+WHERE orgEmail LIKE '%@icstars.org'
+ORDER BY lastName, firstName;
+
+RESULT: Returns matching records
+CHANGE: Replace '%search%' with your search term
+
+
+=== 11. DELETE OPERATIONS (USE WITH CAUTION) ===
+
+-- Delete Single Person (Unclaimed Only)
+DELETE FROM Person 
+WHERE orgEmail = 'email@icstars.org' AND accountStatus = 'unclaimed';
+
+-- Delete Cycle Membership for Single User
+DELETE FROM CycleMembership 
+WHERE personId = (SELECT id FROM Person WHERE orgEmail = 'email@icstars.org')
+AND cycleId = (SELECT id FROM Cycle WHERE code = 'CHI-57');
+
+-- Delete Entire Cycle (Will cascade delete memberships)
+DELETE FROM Cycle WHERE code = 'CHI-57';
+
+RESULT: Returns number of rows deleted - PERMANENT ACTION
+CHANGE: Replace email or cycle code, always test with SELECT first
+
+
+=== 12. UPDATE OPERATIONS ===
+
+-- Update Person Name
+UPDATE Person 
+SET firstName = 'NewFirst', 
+    lastName = 'NewLast',
+    fullName = 'NewFirst NewLast'
+WHERE orgEmail = 'email@icstars.org';
+
+-- Update User Role
+UPDATE User 
+SET role = 'admin'  -- Options: 'user', 'admin', 'super_admin'
+WHERE email = 'email@icstars.org';
+
+-- Update Cycle Membership Status
+UPDATE CycleMembership 
+SET status = 'graduated'  -- Options: 'active', 'alumni', 'graduated', 'withdrawn'
+WHERE personId = (SELECT id FROM Person WHERE orgEmail = 'email@icstars.org')
+AND cycleId = (SELECT id FROM Cycle WHERE code = 'CHI-57');
+
+RESULT: Returns number of rows updated
+CHANGE: Replace values and email/cycle code
+
+
+=== 13. ADMIN QUERIES ===
+
+-- Count Users by Role
+SELECT role, COUNT(*) as count 
+FROM User 
+GROUP BY role;
+
+-- Count People by Account Status
+SELECT accountStatus, COUNT(*) as count 
+FROM Person 
+GROUP BY accountStatus;
+
+-- Find Users Without Person Records
+SELECT u.id, u.username, u.email 
+FROM User u 
+LEFT JOIN Person p ON u.id = p.userId 
+WHERE p.id IS NULL;
+
+-- Find Person Records Without Users
+SELECT p.id, p.firstName, p.lastName, p.orgEmail 
+FROM Person p 
+WHERE p.userId IS NULL;
+
+RESULT: Statistical overview of database
+CHANGE: None needed for counts
+
+
+=== NOTES ===
+
+1. Always test SELECT queries before UPDATE/DELETE
+2. Use LIMIT 10 when testing to avoid large result sets
+3. accountStatus values: 'unclaimed', 'invited', 'activated', 'deactivated'
+4. User roles: 'user', 'admin', 'super_admin'
+5. CycleMembership status: 'active', 'alumni', 'graduated', 'withdrawn'
+6. Use transactions for multiple related operations:
+   START TRANSACTION;
+   -- your queries here
+   COMMIT;  -- or ROLLBACK; if something went wrong
+
+7. Backup before bulk operations:
+   mysqldump -h devlogs.db -u jvc -p devlogs > backup_$(date +%Y%m%d).sql

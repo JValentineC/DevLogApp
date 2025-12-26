@@ -235,8 +235,12 @@ const Engagement: React.FC = () => {
                 <tr key={person.id}>
                   <td className="engagement__name">
                     <div className="person-name">
-                      <span className="person-name-full">{person.fullName}</span>
-                      <span className="person-name-mobile">{person.firstName}</span>
+                      <span className="person-name-full">
+                        {person.fullName}
+                      </span>
+                      <span className="person-name-mobile">
+                        {person.firstName}
+                      </span>
                     </div>
                     {person.linkedInUrl && (
                       <a
