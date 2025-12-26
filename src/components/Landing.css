@@ -219,6 +219,9 @@
   transition: all var(--transition-base);
   text-decoration: none;
   display: inline-block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .btn-primary {
@@ -246,6 +249,7 @@
 .btn-large {
   padding: var(--spacing-md) 3rem;
   font-size: 1.25rem;
+  min-width: fit-content;
 }
 
 /* Animations */
