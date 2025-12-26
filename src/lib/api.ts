@@ -60,6 +60,7 @@ export interface Person {
 export interface Cycle {
   id: number;
   code: string;
+  cycleNumber: number;
   city: string;
   notes?: string;
   memberCount: number;

@@ -165,7 +165,7 @@ const Engagement: React.FC = () => {
             <option value="">All Cycles</option>
             {cycles.map((cycle) => (
               <option key={cycle.id} value={cycle.id}>
-                {cycle.code} ({cycle.memberCount} members)
+                Cycle {cycle.cycleNumber} ({cycle.memberCount} members)
               </option>
             ))}
           </select>
