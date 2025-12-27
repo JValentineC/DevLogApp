@@ -42,4 +42,9 @@ generate-alumni-import.js
 *.sln
 *.sw?
 
+
+
 /src/generated/prisma
+
+
+Docs/

@@ -1,5 +1,6 @@
 generator client {
   provider = "prisma-client-js"
+  previewFeatures = ["fullTextIndex"]
 }
 
 datasource db {
@@ -23,19 +24,64 @@ model User {
   resetTokenExpiry DateTime?
   
   // Profile
-  username     String   @unique @db.VarChar(50)
-  role         String   @default("user") @db.VarChar(20) // 'user', 'admin', 'super_admin'
-  profilePhoto String?  @db.Text
-  bio          String?  @db.Text
+  username         String    @unique @db.VarChar(50)
+  role             String    @default("user") @db.VarChar(20) // 'user', 'admin', 'super_admin'
+  profilePhoto     String?   @db.VarChar(500)
+  avatarShape      String?   @default("rounded") @db.VarChar(50)
+  bio              String?   @db.Text
+  linkedInUrl      String?   @db.VarChar(500)
+  portfolioUrl     String?   @db.VarChar(500)
+  githubUrl        String?   @db.VarChar(500)
+  
+  // UI Settings
+  theme            String?   @default("light") @db.VarChar(20)
+  profileVisibility String?  @default("public") // enum in DB
+  showBioPublic    Boolean?  @default(true) @db.TinyInt
+  
+  // Notification settings
+  emailNotifications Boolean? @default(true) @db.TinyInt
+  weeklyDigest       Boolean? @default(true) @db.TinyInt
+  marketingEmails    Boolean? @default(false) @db.TinyInt
+  
+  // 2FA
+  twoFactorEnabled   Boolean?  @default(false) @db.TinyInt
+  twoFactorSecret    String?   @db.VarChar(255)
+  backupCodes        String?   @db.Text
+  twoFactorEnabledAt DateTime?
+  
+  // Tracking
+  lastLoginAt      DateTime?
   
   // Timestamps
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   
   // Relations
-  devLogs      DevLog[]
-  person       Person?  // Optional link to Person table
+  devLogs              DevLog[]
+  person               Person?  // Optional link to Person table
+  reactions            Reaction[]
+  comments             Comment[]
+  bookmarks            Bookmark[]
+  followersRelation    Follow[] @relation("Following")
+  followingRelation    Follow[] @relation("Follower")
+  notificationsReceived Notification[] @relation("NotificationUser")
+  notificationsActed   Notification[] @relation("NotificationActor")
+  notificationPrefs    NotificationPreference?
+  activities           Activity[]
+  projects             Project[]
+  teamMemberships      TeamMember[]
+  teamsOwned           Team[]
+  leaderboard          Leaderboard?
+  achievements         UserAchievement[]
+  auditLogs            AuditLog[]
   
+  @@index([email])
+  @@index([role])
+  @@index([theme])
+  @@index([profileVisibility])
+  @@index([twoFactorEnabled])
+  @@index([lastLoginAt])
+  @@index([resetToken])
   @@map("User")
 }
 
@@ -84,16 +130,19 @@ model Person {
 }
 
 model Cycle {
-  id         Int      @id @default(autoincrement())
-  code       String   @unique @db.VarChar(50) // e.g., "CHI-50", "Cycle 50"
-  city       String?  @db.VarChar(100)
+  id         Int       @id @default(autoincrement())
+  code       String    @unique @db.VarChar(50) // e.g., "CHI-50", "Cycle 50"
+  city       String?   @db.VarChar(100)
   startDate  DateTime? @db.Date
   endDate    DateTime? @db.Date
-  notes      String?  @db.Text
+  notes      String?   @db.Text
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
   
   // Relations
   cycleMemberships    CycleMembership[]
   captainAssignments  CaptainAssignment[]
+  teams               Team[]
   
   @@map("Cycle")
 }
@@ -105,6 +154,8 @@ model CycleMembership {
   startDate  DateTime? @db.Date
   endDate    DateTime? @db.Date
   status     String    @default("active") @db.VarChar(20) // 'active','graduated','withdrawn','alumni'
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
   
   // Relations
   cycle      Cycle     @relation(fields: [cycleId], references: [id], onDelete: Cascade)
@@ -202,42 +253,56 @@ model JobSeekingProfile {
 }
 
 model DevLog {
-  id          Int      @id @default(autoincrement())
-  title       String   @db.VarChar(255)
-  content     String   @db.Text
+  id          Int       @id @default(autoincrement())
+  title       String    @db.VarChar(255)
+  content     String    @db.Text
   
   // User relationship
   createdBy   Int
-  user        User     @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [createdBy], references: [id], onDelete: Cascade)
   
   // Image support (JSON array of URLs)
-  images      String?  @db.Text
+  images      String?   @db.Text
   
   // Publishing
-  isPublished Boolean  @default(false)
+  isPublished Boolean   @default(false) @db.TinyInt
+  
+  // Soft delete
+  deletedAt   DateTime?
   
   // Timestamps
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime  @default(now()) @db.DateTime
+  updatedAt   DateTime  @updatedAt @db.DateTime
   
   // Relations
-  tags        DevLogTag[]
+  devLogTags        DevLogTag[]
+  reactions         Reaction[]
+  comments          Comment[]
+  bookmarks         Bookmark[]
+  engagementMetrics EngagementMetrics?
+  projectLinks      ProjectDevLog[]
   
   @@index([createdBy])
   @@index([createdAt])
   @@index([isPublished])
+  @@index([createdBy, createdAt], name: "idx_devlog_user_created")
+  @@fulltext([title, content])
   @@map("DevLog")
 }
 
 model Tag {
-  id        Int         @id @default(autoincrement())
-  name      String      @unique @db.VarChar(50)
-  color     String      @default("#6c757d") @db.VarChar(7)
-  createdAt DateTime    @default(now())
+  id          Int         @id @default(autoincrement())
+  name        String      @unique @db.VarChar(50)
+  slug        String      @unique @db.VarChar(50)
+  description String?     @db.Text
+  color       String      @default("#6c757d") @db.VarChar(7)
+  createdAt   DateTime    @default(now()) @db.DateTime
+  updatedAt   DateTime    @updatedAt
   
   // Relations
-  devLogs   DevLogTag[]
+  devLogTags  DevLogTag[]
   
+  @@index([slug], name: "idx_tag_slug")
   @@map("Tag")
 }
 
@@ -250,9 +315,346 @@ model DevLogTag {
   devLog   DevLog @relation(fields: [devLogId], references: [id], onDelete: Cascade)
   tag      Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
   
-  @@unique([devLogId, tagId])
-  @@index([devLogId])
-  @@index([tagId])
+  @@unique([devLogId, tagId], name: "unique_devlog_tag")
+  @@index([devLogId], name: "idx_devlog")
+  @@index([tagId], name: "idx_tag")
   @@map("DevLogTag")
 }
 
+// ============================================================================
+// PHASE 2: ENGAGEMENT & SOCIAL FEATURES
+// ============================================================================
+
+model Reaction {
+  id        Int      @id @default(autoincrement())
+  devLogId  Int
+  userId    Int
+  type      String   // enum in DB: 'like','celebrate','helpful','insightful'
+  createdAt DateTime @default(now())
+  
+  // Relations
+  devLog    DevLog   @relation(fields: [devLogId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, devLogId, type], name: "unique_user_devlog_reaction")
+  @@index([devLogId], name: "idx_reaction_devlog")
+  @@index([userId], name: "idx_reaction_user")
+  @@map("Reaction")
+}
+
+model Comment {
+  id        Int       @id @default(autoincrement())
+  devLogId  Int
+  userId    Int
+  content   String    @db.Text
+  parentId  Int?
+  isEdited  Boolean?  @default(false) @db.TinyInt
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  
+  // Relations
+  devLog    DevLog    @relation(fields: [devLogId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent    Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   Comment[] @relation("CommentReplies")
+  
+  @@index([devLogId], name: "idx_comment_devlog")
+  @@index([userId], name: "idx_comment_user")
+  @@index([parentId], name: "idx_comment_parent")
+  @@map("Comment")
+}
+
+model Follow {
+  id          Int      @id @default(autoincrement())
+  followerId  Int
+  followingId Int
+  createdAt   DateTime @default(now())
+  
+  // Relations
+  follower    User     @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User     @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+  
+  @@unique([followerId, followingId], name: "unique_follow")
+  @@index([followerId], name: "idx_follow_follower")
+  @@index([followingId], name: "idx_follow_following")
+  @@map("Follow")
+}
+
+model Bookmark {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  devLogId  Int
+  notes     String?  @db.Text
+  createdAt DateTime @default(now())
+  
+  // Relations
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  devLog    DevLog   @relation(fields: [devLogId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, devLogId], name: "unique_bookmark")
+  @@index([userId], name: "idx_bookmark_user")
+  @@index([devLogId])
+  @@map("Bookmark")
+}
+
+// ============================================================================
+// PHASE 3: ANALYTICS & TRACKING
+// ============================================================================
+
+model Activity {
+  id           Int      @id @default(autoincrement())
+  userId       Int?
+  activityType String   // enum in DB: 'view','create','edit','delete','like','comment','share','login','logout'
+  entityType   String   // enum in DB: 'devlog','comment','profile','user'
+  entityId     Int?
+  metadata     Json?
+  ipAddress    String?  @db.VarChar(45)
+  userAgent    String?  @db.Text
+  createdAt    DateTime @default(now())
+  
+  // Relations
+  user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  @@index([userId], name: "idx_activity_user")
+  @@index([activityType], name: "idx_activity_type")
+  @@index([entityType, entityId], name: "idx_activity_entity")
+  @@index([createdAt], name: "idx_activity_created")
+  @@map("Activity")
+}
+
+model EngagementMetrics {
+  id                 Int      @id @default(autoincrement())
+  devLogId           Int      @unique
+  viewCount          Int?     @default(0)
+  likeCount          Int?     @default(0)
+  commentCount       Int?     @default(0)
+  bookmarkCount      Int?     @default(0)
+  shareCount         Int?     @default(0)
+  avgReadTimeSeconds Int?
+  lastUpdated        DateTime @default(now()) @updatedAt
+  
+  // Relations
+  devLog             DevLog   @relation(fields: [devLogId], references: [id], onDelete: Cascade)
+  
+  @@index([devLogId], name: "idx_metrics_devlog")
+  @@map("EngagementMetrics")
+}
+
+model ActivityArchive {
+  id           Int      @id @default(autoincrement())
+  userId       Int?
+  activityType String   // enum in DB
+  entityType   String   // enum in DB
+  entityId     Int?
+  metadata     Json?
+  ipAddress    String?  @db.VarChar(45)
+  userAgent    String?  @db.Text
+  createdAt    DateTime @default(now())
+  
+  @@index([userId], name: "idx_activity_user")
+  @@index([activityType], name: "idx_activity_type")
+  @@index([entityType, entityId], name: "idx_activity_entity")
+  @@index([createdAt], name: "idx_activity_created")
+  @@map("ActivityArchive")
+}
+
+// ============================================================================
+// PHASE 4: NOTIFICATIONS
+// ============================================================================
+
+model Notification {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  actorId    Int?
+  type       String   // enum in DB: 'comment','like','follow','mention','milestone','system'
+  entityType String   // enum in DB: 'devlog','comment','user'
+  entityId   Int?
+  message    String   @db.Text
+  isRead     Boolean? @default(false) @db.TinyInt
+  createdAt  DateTime @default(now())
+  
+  // Relations
+  user       User     @relation("NotificationUser", fields: [userId], references: [id], onDelete: Cascade)
+  actor      User?    @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
+  
+  @@index([userId], name: "idx_notification_user")
+  @@index([actorId])
+  @@index([isRead], name: "idx_notification_read")
+  @@index([createdAt], name: "idx_notification_created")
+  @@map("Notification")
+}
+
+model NotificationPreference {
+  id             Int     @id @default(autoincrement())
+  userId         Int     @unique
+  emailOnComment Boolean? @default(true) @db.TinyInt
+  emailOnLike    Boolean? @default(false) @db.TinyInt
+  emailOnFollow  Boolean? @default(true) @db.TinyInt
+  emailOnMention Boolean? @default(true) @db.TinyInt
+  emailDigest    String?  @default("weekly") // enum in DB: 'none','daily','weekly'
+  pushEnabled    Boolean? @default(true) @db.TinyInt
+  
+  // Relations
+  user           User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("NotificationPreference")
+}
+
+// ============================================================================
+// PHASE 5: GAMIFICATION
+// ============================================================================
+
+model Achievement {
+  id          Int      @id @default(autoincrement())
+  code        String   @unique @db.VarChar(50)
+  name        String   @db.VarChar(100)
+  description String?  @db.Text
+  iconUrl     String?  @db.VarChar(255)
+  pointValue  Int?     @default(0)
+  requirement Json?
+  createdAt   DateTime @default(now())
+  
+  // Relations
+  userAchievements UserAchievement[]
+  
+  @@map("Achievement")
+}
+
+model UserAchievement {
+  id            Int      @id @default(autoincrement())
+  userId        Int
+  achievementId Int
+  unlockedAt    DateTime @default(now())
+  
+  // Relations
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, achievementId], name: "unique_user_achievement")
+  @@index([userId], name: "idx_userachievement_user")
+  @@index([achievementId])
+  @@map("UserAchievement")
+}
+
+model Leaderboard {
+  id               Int      @id @default(autoincrement())
+  userId           Int      @unique
+  totalPoints      Int?     @default(0)
+  devLogCount      Int?     @default(0)
+  likeCount        Int?     @default(0)
+  commentCount     Int?     @default(0)
+  streak           Int?     @default(0)
+  lastActivityDate DateTime? @db.Date
+  rank             Int?
+  updatedAt        DateTime @default(now()) @updatedAt
+  
+  // Relations
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([totalPoints], name: "idx_leaderboard_points")
+  @@index([rank], name: "idx_leaderboard_rank")
+  @@map("Leaderboard")
+}
+
+// ============================================================================
+// PHASE 6: PROJECTS & COLLABORATION
+// ============================================================================
+
+model Project {
+  id           Int      @id @default(autoincrement())
+  userId       Int
+  title        String   @db.VarChar(200)
+  description  String?  @db.Text
+  status       String?  @default("planning") // enum in DB: 'planning','in_progress','completed','paused'
+  startDate    DateTime? @db.Date
+  endDate      DateTime? @db.Date
+  githubUrl    String?  @db.VarChar(255)
+  liveUrl      String?  @db.VarChar(255)
+  thumbnailUrl String?  @db.VarChar(255)
+  visibility   String?  @default("public") // enum in DB: 'public','private','cycle_only'
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  // Relations
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  devLogs      ProjectDevLog[]
+  
+  @@index([userId], name: "idx_project_user")
+  @@index([status], name: "idx_project_status")
+  @@map("Project")
+}
+
+model ProjectDevLog {
+  id        Int      @id @default(autoincrement())
+  projectId Int
+  devLogId  Int
+  createdAt DateTime @default(now())
+  
+  // Relations
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  devLog    DevLog   @relation(fields: [devLogId], references: [id], onDelete: Cascade)
+  
+  @@unique([projectId, devLogId], name: "unique_project_devlog")
+  @@index([devLogId])
+  @@map("ProjectDevLog")
+}
+
+model Team {
+  id          Int      @id @default(autoincrement())
+  name        String   @db.VarChar(100)
+  description String?  @db.Text
+  cycleId     Int?
+  ownerId     Int
+  visibility  String?  @default("private") // enum in DB: 'public','private','cycle_only'
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  cycle       Cycle?       @relation(fields: [cycleId], references: [id], onDelete: SetNull)
+  owner       User         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  members     TeamMember[]
+  
+  @@index([cycleId], name: "idx_team_cycle")
+  @@index([ownerId])
+  @@map("Team")
+}
+
+model TeamMember {
+  id       Int      @id @default(autoincrement())
+  teamId   Int
+  userId   Int
+  role     String?  @default("member") // enum in DB: 'owner','admin','member'
+  joinedAt DateTime @default(now())
+  
+  // Relations
+  team     Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([teamId, userId], name: "unique_team_member")
+  @@index([userId])
+  @@map("TeamMember")
+}
+
+// ============================================================================
+// PHASE 7: SECURITY & AUDIT
+// ============================================================================
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int?
+  action    String   @db.VarChar(100)
+  tableName String   @db.VarChar(50)
+  recordId  Int?
+  oldValues Json?
+  newValues Json?
+  ipAddress String?  @db.VarChar(45)
+  createdAt DateTime @default(now())
+  
+  // Relations
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  @@index([userId], name: "idx_audit_user")
+  @@index([tableName, recordId], name: "idx_audit_table")
+  @@map("AuditLog")
+}
