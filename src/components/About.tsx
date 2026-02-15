@@ -1,4 +1,14 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+
+interface RandomUser {
+  id: number;
+  username: string;
+  firstName: string;
+  lastName: string;
+  profilePhoto?: string;
+  devLogCount: number;
+}
 
 interface AboutProps {
   user?: {
@@ -14,6 +24,31 @@ interface AboutProps {
 }
 
 const About: React.FC<AboutProps> = ({ user, onNavigateToProfile }) => {
+  const navigate = useNavigate();
+  const [randomUsers, setRandomUsers] = useState<RandomUser[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(true);
+
+  useEffect(() => {
+    const fetchRandomUsers = async () => {
+      try {
+        const API_BASE_URL =
+          import.meta.env.VITE_API_URL || "http://localhost:3001/api";
+        const response = await fetch(`${API_BASE_URL}/users/random?limit=5`);
+        const data = await response.json();
+
+        if (response.ok && data.users) {
+          setRandomUsers(data.users);
+        }
+      } catch (error) {
+        console.error("Error fetching random users:", error);
+      } finally {
+        setLoadingUsers(false);
+      }
+    };
+
+    fetchRandomUsers();
+  }, []);
+
   return (
     <div className="min-h-screen bg-base-100">
       {/* Hero Banner */}
@@ -152,6 +187,120 @@ const About: React.FC<AboutProps> = ({ user, onNavigateToProfile }) => {
                   track my own progress but also contribute to the collective
                   knowledge of the developer community.
                 </p>
+              </div>
+            </section>
+
+            {/* Meet a Star Section */}
+            <section className="mb-8">
+              <div
+                style={{
+                  border: "2px solid var(--color-border-primary)",
+                  borderRadius: "0",
+                  padding: "var(--spacing-xl)",
+                  background: "var(--color-bg-primary)",
+                }}
+              >
+                <h2
+                  style={{
+                    fontSize: "1.75rem",
+                    fontWeight: "700",
+                    marginBottom: "var(--spacing-lg)",
+                    color: "var(--color-text-primary)",
+                  }}
+                >
+                  ⭐ Meet a Star
+                </h2>
+                {loadingUsers ? (
+                  <div
+                    style={{
+                      textAlign: "center",
+                      padding: "var(--spacing-xl)",
+                    }}
+                  >
+                    <span className="loading loading-spinner loading-md"></span>
+                  </div>
+                ) : randomUsers.length > 0 ? (
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns:
+                        "repeat(auto-fit, minmax(180px, 1fr))",
+                      gap: "var(--spacing-lg)",
+                    }}
+                  >
+                    {randomUsers.map((randomUser) => (
+                      <div
+                        key={randomUser.id}
+                        onClick={() => navigate(`/profile/${randomUser.id}`)}
+                        style={{
+                          cursor: "pointer",
+                          textAlign: "center",
+                          padding: "var(--spacing-md)",
+                          background: "var(--color-bg-secondary)",
+                          border: "1px solid var(--color-border-primary)",
+                          borderRadius: "var(--radius-md)",
+                          transition: "all 0.2s ease",
+                        }}
+                        onMouseOver={(e) => {
+                          e.currentTarget.style.transform = "translateY(-4px)";
+                          e.currentTarget.style.borderColor =
+                            "var(--color-primary)";
+                          e.currentTarget.style.boxShadow = "var(--shadow-md)";
+                        }}
+                        onMouseOut={(e) => {
+                          e.currentTarget.style.transform = "translateY(0)";
+                          e.currentTarget.style.borderColor =
+                            "var(--color-border-primary)";
+                          e.currentTarget.style.boxShadow = "none";
+                        }}
+                      >
+                        <img
+                          src={
+                            randomUser.profilePhoto ||
+                            "/DevLogApp/apple-touch-icon (2).png"
+                          }
+                          alt={`${randomUser.firstName} ${randomUser.lastName}`}
+                          style={{
+                            width: "80px",
+                            height: "80px",
+                            borderRadius: "50%",
+                            objectFit: "cover",
+                            margin: "0 auto var(--spacing-md)",
+                            border: "3px solid var(--color-primary)",
+                          }}
+                        />
+                        <h3
+                          style={{
+                            fontSize: "1rem",
+                            fontWeight: "600",
+                            color: "var(--color-text-primary)",
+                            marginBottom: "var(--spacing-xs)",
+                          }}
+                        >
+                          {randomUser.firstName} {randomUser.lastName}
+                        </h3>
+                        <p
+                          style={{
+                            fontSize: "0.875rem",
+                            color: "var(--color-text-tertiary)",
+                          }}
+                        >
+                          {randomUser.devLogCount}{" "}
+                          {randomUser.devLogCount === 1 ? "log" : "logs"}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p
+                    style={{
+                      textAlign: "center",
+                      color: "var(--color-text-tertiary)",
+                    }}
+                  >
+                    No users to display yet
+                  </p>
+                )}
               </div>
             </section>
 

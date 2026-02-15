@@ -158,8 +158,8 @@ app.post("/api/auth/login", authLimiter, async (req, res) => {
       });
     }
 
-    // Check if 2FA is enabled
-    if (user.twoFactorEnabled) {
+    // Check if 2FA is enabled (compare with == 1 to handle Buffer/bit values from MySQL)
+    if (Number(user.twoFactorEnabled) === 1) {
       // Generate a temporary token for 2FA verification (expires in 5 minutes)
       const tempToken = jwt.sign(
         { userId: user.id, purpose: "2fa-verification" },
@@ -603,7 +603,7 @@ app.post("/api/auth/forgot-password", authLimiter, async (req, res) => {
           <body>
             <div class="container">
               <div class="header">
-                <h1>🔐 Password Reset Request</h1>
+                <h1>ðŸ” Password Reset Request</h1>
               </div>
               <div class="content">
                 <p>Hello,</p>
@@ -1408,6 +1408,168 @@ app.post(
   }
 );
 
+// GET /api/users/random - Get random users for discovery (Public)
+app.get("/api/users/random", limiter, async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 5;
+
+    const [users] = await pool.execute(
+      `SELECT 
+        u.id,
+        u.username,
+        u.firstName,
+        u.lastName,
+        u.profilePhoto,
+        u.bio,
+        COALESCE(
+          (SELECT COUNT(*) FROM DevLog WHERE createdBy = u.id AND isPublished = 1),
+          0
+        ) as devLogCount
+      FROM User u
+      WHERE u.profileVisibility = 'public'
+      ORDER BY RAND()
+      LIMIT ?`,
+      [limit]
+    );
+
+    res.json({
+      success: true,
+      users: users,
+    });
+  } catch (error) {
+    console.error("Error fetching random users:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch users",
+    });
+  }
+});
+
+// GET /api/users/:id/public - Get public profile of a user (Public)
+app.get("/api/users/:id/public", limiter, async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id);
+
+    const [users] = await pool.execute(
+      `SELECT 
+        u.id,
+        u.username,
+        u.firstName,
+        u.lastName,
+        u.profilePhoto,
+        u.bio,
+        p.linkedInUrl,
+        p.portfolioUrl,
+        p.githubUrl,
+        u.theme,
+        u.showBioPublic,
+        u.createdAt,
+        COALESCE(
+          (SELECT COUNT(*) FROM DevLog WHERE createdBy = u.id AND isPublished = 1),
+          0
+        ) as devLogCount
+      FROM User u
+      LEFT JOIN Person p ON u.id = p.userId
+      WHERE u.id = ? AND u.profileVisibility = 'public'`,
+      [userId]
+    );
+
+    if (users.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: "User not found or profile is private",
+      });
+    }
+
+    const user = users[0];
+
+    // Don't show bio if user has it hidden
+    if (!user.showBioPublic) {
+      user.bio = null;
+    }
+
+    res.json({
+      success: true,
+      user: user,
+    });
+  } catch (error) {
+    console.error("Error fetching public profile:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch profile",
+    });
+  }
+});
+
+// GET /api/users/search - Search for users by name or cycle (Public)
+app.get("/api/users/search", limiter, async (req, res) => {
+  try {
+    const { q, cycle } = req.query;
+
+    if (!q && !cycle) {
+      return res.status(400).json({
+        success: false,
+        error: "Search query (q) or cycle number is required",
+      });
+    }
+
+    let query = `
+      SELECT DISTINCT
+        u.id,
+        u.username,
+        u.firstName,
+        u.lastName,
+        u.profilePhoto,
+        u.bio,
+        u.theme,
+        COALESCE(
+          (SELECT COUNT(*) FROM DevLog WHERE createdBy = u.id AND isPublished = 1),
+          0
+        ) as devLogCount,
+        GROUP_CONCAT(DISTINCT c.code ORDER BY c.code SEPARATOR ', ') as cycles
+      FROM User u
+      LEFT JOIN Person p ON p.userId = u.id
+      LEFT JOIN CycleMembership cm ON cm.personId = p.id
+      LEFT JOIN Cycle c ON c.id = cm.cycleId
+      WHERE u.profileVisibility = 'public'
+    `;
+
+    const params = [];
+
+    if (q) {
+      query += ` AND (
+        u.username LIKE ? OR 
+        u.firstName LIKE ? OR 
+        u.lastName LIKE ? OR
+        CONCAT(u.firstName, ' ', u.lastName) LIKE ?
+      )`;
+      const searchTerm = `%${q}%`;
+      params.push(searchTerm, searchTerm, searchTerm, searchTerm);
+    }
+
+    if (cycle) {
+      query += ` AND c.code LIKE ?`;
+      params.push(`%${cycle}%`);
+    }
+
+    query += ` GROUP BY u.id ORDER BY u.lastName, u.firstName LIMIT 50`;
+
+    const [users] = await pool.execute(query, params);
+
+    res.json({
+      success: true,
+      users: users,
+      count: users.length,
+    });
+  } catch (error) {
+    console.error("Error searching users:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to search users",
+    });
+  }
+});
+
 // GET /api/users/:id/settings - Get user privacy and notification settings (Protected)
 app.get(
   "/api/users/:id/settings",
@@ -1482,11 +1644,45 @@ app.put(
         });
       }
 
-      // Validate theme
-      if (theme && !["light", "dark", "system"].includes(theme)) {
+      // Validate theme - allow all DaisyUI themes
+      const validThemes = [
+        "light",
+        "dark",
+        "cupcake",
+        "bumblebee",
+        "emerald",
+        "corporate",
+        "synthwave",
+        "retro",
+        "cyberpunk",
+        "valentine",
+        "halloween",
+        "garden",
+        "forest",
+        "aqua",
+        "lofi",
+        "pastel",
+        "fantasy",
+        "wireframe",
+        "black",
+        "luxury",
+        "dracula",
+        "cmyk",
+        "autumn",
+        "business",
+        "acid",
+        "lemonade",
+        "night",
+        "coffee",
+        "winter",
+        "dim",
+        "nord",
+        "sunset",
+      ];
+      if (theme && !validThemes.includes(theme)) {
         return res.status(400).json({
           success: false,
-          error: "theme must be 'light', 'dark', or 'system'",
+          error: "Invalid theme name",
         });
       }
 

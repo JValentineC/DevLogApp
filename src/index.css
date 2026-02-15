@@ -96,27 +96,26 @@
 [data-theme="dark"],
 body.dark-mode {
   /* Background Colors - Dark Mode */
-  --color-bg-primary: #1a1d28;
-  --color-bg-secondary: #262e44;
-  --color-bg-tertiary: #2a2e3d;
-  --color-bg-accent: #33384a;
+  --color-bg-primary: #1a202c;
+  --color-bg-secondary: #2d3748;
+  --color-bg-tertiary: #343a40;
+  --color-bg-accent: #3a4556;
 
   /* Text Colors - Dark Mode */
-  --color-text-primary: #f6f6f6;
-  --color-text-secondary: #e0dede;
-  --color-text-tertiary: #bebdbd;
-  --color-text-muted: #747474;
+  --color-text-primary: #f7fafc;
+  --color-text-secondary: #e2e8f0;
+  --color-text-tertiary: #cbd5e0;
+  --color-text-muted: #a0aec0;
   --color-text-inverse: #1a202c;
 
   /* Border Colors - Dark Mode */
-  --color-border-primary: #3a3f52;
-  --color-border-secondary: #2d3546;
-  --color-border-focus: #4a5068;
-  --color-border-light: #33384a;
+  --color-border-primary: #4a5568;
+  --color-border-secondary: #2d3748;
+  --color-border-focus: #718096;
 
   /* UI Element Colors - Dark Mode */
-  --color-header-bg: #1a1d28;
-  --color-header-bg-end: #262e44;
+  --color-header-bg: #1a1a1a;
+  --color-header-bg-end: #2d2d2d;
   --color-header-text: #ffffff;
 
   /* Adjust shadows for dark mode */

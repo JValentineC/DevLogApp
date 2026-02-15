@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import TwoFactorVerify from "./TwoFactorVerify";
 import "./Login.css";
@@ -17,6 +17,40 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onClose }) => {
   const [showTwoFactor, setShowTwoFactor] = useState(false);
   const [tempToken, setTempToken] = useState("");
   const [userId, setUserId] = useState<number | null>(null);
+  const [rateLimitCountdown, setRateLimitCountdown] = useState(0);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Start a 15-minute countdown when rate limited
+  const startRateLimitCountdown = () => {
+    // Clear any existing timer
+    if (countdownRef.current) clearInterval(countdownRef.current);
+    const totalSeconds = 15 * 60; // 15 minutes
+    setRateLimitCountdown(totalSeconds);
+    countdownRef.current = setInterval(() => {
+      setRateLimitCountdown((prev) => {
+        if (prev <= 1) {
+          if (countdownRef.current) clearInterval(countdownRef.current);
+          setIsRateLimited(false);
+          setError("");
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  // Clean up timer on unmount
+  useEffect(() => {
+    return () => {
+      if (countdownRef.current) clearInterval(countdownRef.current);
+    };
+  }, []);
+
+  const formatCountdown = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
 
   const handle2FAVerify = async (token?: string, backupCode?: string) => {
     try {
@@ -73,17 +107,28 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onClose }) => {
         body: JSON.stringify({ username, password }),
       });
 
-      const data = await response.json();
+      // Handle rate limit before trying to parse JSON
+      if (response.status === 429) {
+        setIsRateLimited(true);
+        startRateLimitCountdown();
+        throw new Error(
+          "You've made too many login attempts. Please wait for the timer below before trying again."
+        );
+      }
+
+      let data;
+      try {
+        data = await response.json();
+      } catch {
+        throw new Error("Unexpected server response. Please try again later.");
+      }
 
       if (!response.ok) {
-        // Check for rate limit error
-        if (
-          response.status === 429 ||
-          data.error?.toLowerCase().includes("too many")
-        ) {
+        if (data.error?.toLowerCase().includes("too many")) {
           setIsRateLimited(true);
+          startRateLimitCountdown();
           throw new Error(
-            "Too many login attempts. Please wait 15 minutes before trying again."
+            "You've made too many login attempts. Please wait for the timer below before trying again."
           );
         }
         throw new Error(data.error || "Login failed");
@@ -149,13 +194,44 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onClose }) => {
                 isRateLimited ? "rate-limit-error" : ""
               }`}
             >
-              {isRateLimited && (
-                <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>
-                  ⏱️
-                </div>
+              {isRateLimited ? (
+                <>
+                  <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>
+                    ⏱️
+                  </div>
+                  <strong>Too Many Attempts</strong>
+                  <div style={{ marginTop: "0.5rem" }}>
+                    You've made too many login attempts.
+                  </div>
+                  {rateLimitCountdown > 0 && (
+                    <div
+                      style={{
+                        marginTop: "0.75rem",
+                        fontSize: "1.5rem",
+                        fontFamily: "monospace",
+                        fontWeight: "bold",
+                        color: "#f59e0b",
+                      }}
+                    >
+                      Try again in {formatCountdown(rateLimitCountdown)}
+                    </div>
+                  )}
+                  <div
+                    style={{
+                      marginTop: "0.5rem",
+                      fontSize: "0.85rem",
+                      color: "#9ca3af",
+                    }}
+                  >
+                    Please wait for the timer to expire before trying again.
+                  </div>
+                </>
+              ) : (
+                <>
+                  <strong>Error</strong>
+                  <div style={{ marginTop: "0.5rem" }}>{error}</div>
+                </>
               )}
-              <strong>{isRateLimited ? "Rate Limit Exceeded" : "Error"}</strong>
-              <div style={{ marginTop: "0.5rem" }}>{error}</div>
             </div>
           )}
 
@@ -193,7 +269,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onClose }) => {
           </div>
 
           <div className="login-actions">
-            <button type="submit" className="btn btn-login" disabled={loading}>
+            <button type="submit" className="btn btn-login" disabled={loading || isRateLimited}>
               {loading ? "Logging in..." : "Login"}
             </button>
             <button

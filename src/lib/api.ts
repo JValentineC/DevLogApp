@@ -470,4 +470,62 @@ export const cycleApi = {
   },
 };
 
+// Community API (public)
+export const communityApi = {
+  // Get random users
+  async getRandomUsers(limit: number = 5): Promise<User[]> {
+    const response = await apiFetch<User[]>(`/users/random?limit=${limit}`);
+
+    if (!response.success) {
+      throw new ApiError(
+        response.error || "Failed to fetch random users",
+        500,
+        response
+      );
+    }
+
+    return (response as any).users || [];
+  },
+
+  // Get public profile
+  async getPublicProfile(userId: number): Promise<User> {
+    const response = await apiFetch<User>(`/users/${userId}/public`);
+
+    if (!response.success) {
+      throw new ApiError(
+        response.error || "Failed to fetch public profile",
+        404,
+        response
+      );
+    }
+
+    return (response as any).user;
+  },
+
+  // Search users
+  async searchUsers(
+    query: string,
+    cycle?: string
+  ): Promise<{ users: User[]; count: number }> {
+    const params = new URLSearchParams();
+    if (query) params.append("q", query);
+    if (cycle) params.append("cycle", cycle);
+
+    const response = await apiFetch<User[]>(`/users/search?${params}`);
+
+    if (!response.success) {
+      throw new ApiError(
+        response.error || "Failed to search users",
+        500,
+        response
+      );
+    }
+
+    return {
+      users: (response as any).users || [],
+      count: (response as any).count || 0,
+    };
+  },
+};
+
 export { ApiError };
